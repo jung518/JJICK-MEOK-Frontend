@@ -6,16 +6,18 @@ import { postHandoff } from '@/src/api/auth';
 import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { getOAuthRedirectUri } from '@/src/lib/oauthRedirect';
+import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
 
-const NAVER_AUTH_URL = `${process.env.EXPO_PUBLIC_API_URL}/oauth/naver/login`;
+type OAuthProvider = 'google' | 'kakao' | 'naver';
 
-export const useNaverLogin = () => {
+export const useOAuthLogin = (provider: OAuthProvider) => {
   const router = useRouter();
   const { setToken, setRegistrationStatus } = useAuthStore();
+  const authUrlBase = `${process.env.EXPO_PUBLIC_API_URL}/oauth/${provider}/login`;
 
   const login = async () => {
-    const redirectUri = getOAuthRedirectUri('naver');
-    const authUrl = Platform.OS === 'web' ? `${NAVER_AUTH_URL}?platform=web` : NAVER_AUTH_URL;
+    const redirectUri = getOAuthRedirectUri(provider);
+    const authUrl = Platform.OS === 'web' ? `${authUrlBase}?platform=web` : authUrlBase;
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
     if (result.type !== 'success') return;
 
@@ -31,16 +33,9 @@ export const useNaverLogin = () => {
       ]);
       setToken(accessToken);
       setRegistrationStatus(registrationStatus);
-
-      if (registrationStatus === 'NOT_STARTED') {
-        router.replace('/(auth)/profile-setup');
-      } else if (registrationStatus === 'PROFILE_COMPLETED') {
-        router.replace('/onboarding/step1');
-      } else {
-        router.replace('/(tabs)/home');
-      }
+      router.replace(getPostAuthRoute(registrationStatus));
     } catch (error: any) {
-      console.error('[useNaverLogin] error:', error?.response?.data ?? error);
+      console.error(`[useOAuthLogin:${provider}] error:`, error?.response?.data ?? error);
     }
   };
 
