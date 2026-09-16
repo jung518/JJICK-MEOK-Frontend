@@ -17,7 +17,6 @@ import { colors } from '@/src/constants/colors';
 import type { Activity, Tag } from '@/src/types/activities';
 
 export type { Activity, Tag };
-export type { TagType } from '@/src/types/activities';
 
 const SCREEN_WIDTH = Math.min(Dimensions.get('window').width, 430);
 export const CARD_WIDTH = SCREEN_WIDTH - 40;
