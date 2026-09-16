@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import type { ApiErrorData } from '@/src/types/api';
+import { resolveErrorMessage } from '@/src/utils/apiError';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
@@ -97,12 +98,16 @@ export default function SignupScreen() {
       setStep('verify');
     },
     onError: (error: AxiosError<ApiErrorData>) => {
-      const errorCode = error?.response?.data?.code;
-      if (errorCode === 'EMAIL_ALREADY_EXISTS' || errorCode === 'COMMON_409') {
-        setServerError('이미 가입되어 있는 이메일이에요.');
-      } else {
-        setServerError('인증번호 발송에 실패했습니다. 다시 시도해주세요.');
-      }
+      setServerError(
+        resolveErrorMessage(
+          error,
+          {
+            EMAIL_ALREADY_EXISTS: '이미 가입되어 있는 이메일이에요.',
+            COMMON_409: '이미 가입되어 있는 이메일이에요.',
+          },
+          '인증번호 발송에 실패했습니다. 다시 시도해주세요.',
+        ),
+      );
     },
   });
 
@@ -114,11 +119,12 @@ export default function SignupScreen() {
       startTimer(response.expiresIn);
     },
     onError: (error: AxiosError<ApiErrorData>) => {
-      const errorCode = error?.response?.data?.code;
       setCodeError(
-        errorCode === 'EMAIL_CODE_RATE_LIMITED'
-          ? '잠시 후 다시 시도해주세요.'
-          : '재전송에 실패했습니다.',
+        resolveErrorMessage(
+          error,
+          { EMAIL_CODE_RATE_LIMITED: '잠시 후 다시 시도해주세요.' },
+          '재전송에 실패했습니다.',
+        ),
       );
     },
   });
@@ -129,16 +135,17 @@ export default function SignupScreen() {
       navigateOnce({ pathname: '/(auth)/password', params: { email } });
     },
     onError: (error: AxiosError<ApiErrorData>) => {
-      const errorCode = error?.response?.data?.code;
-      if (errorCode === 'INVALID_EMAIL_CODE') {
-        setCodeError('인증번호가 올바르지 않습니다.');
-      } else if (errorCode === 'EMAIL_CODE_EXPIRED') {
-        setCodeError('유효시간이 만료되었습니다. 다시 시도해주세요.');
-      } else if (errorCode === 'EMAIL_ALREADY_EXISTS') {
-        setCodeError('이미 가입된 이메일입니다.');
-      } else {
-        setCodeError('인증에 실패했습니다. 다시 시도해주세요.');
-      }
+      setCodeError(
+        resolveErrorMessage(
+          error,
+          {
+            INVALID_EMAIL_CODE: '인증번호가 올바르지 않습니다.',
+            EMAIL_CODE_EXPIRED: '유효시간이 만료되었습니다. 다시 시도해주세요.',
+            EMAIL_ALREADY_EXISTS: '이미 가입된 이메일입니다.',
+          },
+          '인증에 실패했습니다. 다시 시도해주세요.',
+        ),
+      );
     },
   });
 

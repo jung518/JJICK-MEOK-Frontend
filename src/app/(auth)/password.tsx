@@ -17,6 +17,7 @@ import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import type { ApiErrorData } from '@/src/types/api';
+import { resolveErrorMessage } from '@/src/utils/apiError';
 
 const CONDITIONS = [
   { key: 'length', label: '8자 이상', check: (pw: string) => pw.length >= 8 },
@@ -73,12 +74,13 @@ export default function PasswordScreen() {
     },
     onError: (error: AxiosError<ApiErrorData>) => {
       console.error('[password] signup error:', error?.response?.data ?? error);
-      const code = error?.response?.data?.code;
-      if (code === 'EMAIL_ALREADY_EXISTS') {
-        setSignupError('이미 가입된 이메일입니다.');
-      } else {
-        setSignupError('회원가입에 실패했습니다. 다시 시도해주세요.');
-      }
+      setSignupError(
+        resolveErrorMessage(
+          error,
+          { EMAIL_ALREADY_EXISTS: '이미 가입된 이메일입니다.' },
+          '회원가입에 실패했습니다. 다시 시도해주세요.',
+        ),
+      );
     },
   });
 
