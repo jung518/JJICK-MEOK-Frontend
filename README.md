@@ -8,6 +8,7 @@
 
 - 🏠 Organization: https://github.com/JJICK-MEOK
 - 🌐 Web (시연용 배포): https://jjick-meok.vercel.app
+- 📱 모바일 앱 서비스로, 데스크탑 브라우저보다 QR코드를 폰으로 스캔해서 확인하시는 걸 권장합니다.
   > ※ Live Demo는 팀 원본 레포 기준 배포본입니다. 포크 레포에는 포트폴리오용 리팩토링이 추가로 반영되어 있습니다.
 
 ### 시연용 QR
