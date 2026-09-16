@@ -5,9 +5,7 @@ import { CTAContainer } from '@/src/components/Layout/CTAContainer';
 import SocialLoginButton from '@/src/components/Button/SocialLoginButton';
 import { Typography } from '@/src/components/Typography/Typography';
 import { colors } from '@/src/constants/colors';
-import { useKakaoLogin } from '@/src/hooks/useKakaoLogin';
-import { useGoogleLogin } from '@/src/hooks/useGoogleLogin';
-import { useNaverLogin } from '@/src/hooks/useNaverLogin';
+import { useOAuthLogin } from '@/src/hooks/useOAuthLogin';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import CarouselAuto from '@/src/components/Carousel/CarouselAuto';
 import Ellipse37 from '@/assets/images/Ellipse 37.svg';
@@ -17,9 +15,9 @@ import Ellipse40 from '@/assets/images/Ellipse 40.svg';
 
 export default function LoginScreen() {
   const navigateOnce = useNavigateOnce();
-  const { login: kakaoLogin } = useKakaoLogin();
-  const { login: googleLogin } = useGoogleLogin();
-  const { login: naverLogin } = useNaverLogin();
+  const { login: kakaoLogin } = useOAuthLogin('kakao');
+  const { login: googleLogin } = useOAuthLogin('google');
+  const { login: naverLogin } = useOAuthLogin('naver');
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ gestureEnabled: false }} />

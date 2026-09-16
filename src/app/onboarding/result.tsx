@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useOnboardingStore } from '@/src/store/onboardingStore';
 import { getCustomPageData } from '@/src/api/pages';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
+import { isNotExpired } from '@/src/utils/activity';
 import { ContentCard } from '@/src/components/Card/ContentCard';
 import { Loading } from '@/src/components/Loading/Loading';
 import ProgressBar from '@/src/components/Bar/ProgressBar';
@@ -27,7 +28,7 @@ export default function OnboardingResult() {
 
   const nickname = data?.nickname ?? storedNickname;
   const activities = (data?.recommended.activities ?? [])
-    .filter((activity) => activity.deadline >= 0)
+    .filter((activity) => isNotExpired(activity.deadline))
     .slice(0, 3);
 
   return (

@@ -1,8 +1,9 @@
-import { useState } from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge from '@/src/components/Chip/ChipBadge';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday } from '@/src/utils/activity';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
 
@@ -21,21 +22,21 @@ export default function RecommendationCard({
   deadline,
   thumbnailUrl,
 }: Props) {
-  const [imageError, setImageError] = useState(false);
+  const { hasImage, onError } = useImageWithFallback(thumbnailUrl);
   const displayTags = assignUniqueVariants(pickDiverseTags(hashtags));
-  const ddayLabel = deadline <= 0 ? 'D-day' : `D-${deadline}`;
+  const ddayLabel = formatDday(deadline);
 
   return (
     <View style={styles.container}>
       <View style={styles.inner}>
         <View style={styles.upper}>
           <View style={[styles.image, { overflow: 'hidden' }]}>
-            {thumbnailUrl && !imageError ? (
+            {hasImage ? (
               <Image
                 source={{ uri: thumbnailUrl }}
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="cover"
-                onError={() => setImageError(true)}
+                onError={onError}
               />
             ) : (
               <DefaultActivity width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 16,
-    color: '#222',
+    color: colors.text.primary,
     letterSpacing: 0.32,
     lineHeight: 20,
     alignSelf: 'stretch',

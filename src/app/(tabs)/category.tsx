@@ -1,37 +1,30 @@
-import { useState, useRef, useCallback } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Modal,
-  TouchableOpacity,
-  PanResponder,
-} from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import { Dropdown } from '@/src/components/Filter/Dropdown';
 import ActivityCard from '@/src/components/Card/ActivityCard';
 import CategoryFilter from '@/src/components/Modal/CategoryFilter';
-import { Typography } from '@/src/components/Typography/Typography';
+import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
 import { colors } from '@/src/constants/colors';
 import { getCategoryPageData } from '@/src/api/pages';
 import { getMyProfile } from '@/src/api/user';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import AppBar from '@/src/components/Bar/AppBar';
 import CategoryBar from '@/src/components/Bar/CategoryBar';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 
 type SheetType = 'type' | 'sort' | null;
 
-const PULL_THRESHOLD = 60;
-
 function toCardProps(activity: HomeActivity) {
-  const dday = activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`;
+  const dday = formatDday(activity.deadline);
   const tags = assignUniqueVariants(pickDiverseTags(activity.hashtags ?? []));
   return {
     dday,
@@ -49,28 +42,6 @@ export default function CategoryScreen() {
   const [selectedCategoryValue, setSelectedCategoryValue] = useState('');
   const [selectedSortValue, setSelectedSortValue] = useState('');
   const [activeSheet, setActiveSheet] = useState<SheetType>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['category', selectedTypeValue, selectedCategoryValue, selectedSortValue],
@@ -81,7 +52,8 @@ export default function CategoryScreen() {
         sort: selectedSortValue || undefined,
       }),
   });
-  refetchRef.current = refetch;
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(refetch);
 
   const { data: profile } = useQuery({
     queryKey: ['users', 'me', 'profile'],
@@ -92,7 +64,7 @@ export default function CategoryScreen() {
   const typeOptions = data?.typeOptions ?? [];
   const categoryOptions = data?.categoryOptions ?? [];
   const sortOptions = data?.sortOptions ?? [];
-  const activities = (data?.activities ?? []).filter((a) => a.deadline >= 0);
+  const activities = (data?.activities ?? []).filter((a) => isNotExpired(a.deadline));
 
   const selectedTypeLabel = typeOptions.find((o) => o.value === selectedTypeValue)?.label ?? '전체';
   const selectedCategoryLabel =
@@ -102,19 +74,10 @@ export default function CategoryScreen() {
 
   const tabOptions = categoryOptions.length > 0 ? categoryOptions.map((o) => o.label) : ['전체'];
 
-  const errorMessage = (() => {
-    if (isError) {
-      const err = error as AxiosError;
-      if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-      if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-        return '네트워크 연결을 확인해주세요.';
-      return '활동 목록을 불러오지 못했어요. 다시 시도해주세요.';
-    }
-    if (data && activities.length === 0) return '조건에 맞는 활동이 없어요.';
-    return null;
-  })();
-
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const apiError = useApiErrorMessage(isError, error, '활동 목록을 불러오지 못했어요. 다시 시도해주세요.');
+  const errorMessage =
+    apiError.message ?? (data && activities.length === 0 ? '조건에 맞는 활동이 없어요.' : null);
+  const isRetriable = apiError.isRetriable;
 
   useFocusEffect(
     useCallback(() => {
@@ -144,9 +107,7 @@ export default function CategoryScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          onScroll={(e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
-          }}
+          onScroll={onScroll}
           scrollEventThrottle={16}
         >
           <View style={[styles.filterRow, styles.fullWidth]}>
@@ -159,25 +120,7 @@ export default function CategoryScreen() {
             </View>
           ) : errorMessage ? (
             <View style={styles.messageBox}>
-              <Typography
-                size="sm"
-                weight="medium"
-                color="secondary"
-                style={{ textAlign: 'center' }}
-              >
-                {errorMessage}
-              </Typography>
-              {isRetriable && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => refetch()}
-                  activeOpacity={0.7}
-                >
-                  <Typography size="sm" weight="medium" color="secondary">
-                    다시 시도
-                  </Typography>
-                </TouchableOpacity>
-              )}
+              <ErrorBox message={errorMessage} onRetry={isRetriable ? () => refetch() : undefined} />
             </View>
           ) : (
             <View style={styles.cards}>
@@ -202,39 +145,31 @@ export default function CategoryScreen() {
         </ScrollView>
       </View>
 
-      <Modal
-        visible={!!activeSheet}
-        transparent
-        statusBarTranslucent
-        onRequestClose={() => setActiveSheet(null)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setActiveSheet(null)} />
-        <View style={styles.sheetContainer}>
-          <CategoryFilter
-            title={activeSheet === 'type' ? '카테고리 선택' : '정렬'}
-            options={
-              activeSheet === 'type'
-                ? typeOptions.map((o) => o.label)
-                : sortOptions.map((o) => o.label)
+      <BottomSheetModal visible={!!activeSheet} onClose={() => setActiveSheet(null)}>
+        <CategoryFilter
+          title={activeSheet === 'type' ? '카테고리 선택' : '정렬'}
+          options={
+            activeSheet === 'type'
+              ? typeOptions.map((o) => o.label)
+              : sortOptions.map((o) => o.label)
+          }
+          selected={activeSheet === 'type' ? selectedTypeLabel : selectedSortLabel}
+          optionGap={activeSheet === 'sort' ? 35 : 30}
+          height={activeSheet === 'type' ? 428 : 322}
+          onSelect={(label) => {
+            if (activeSheet === 'type') {
+              const opt = typeOptions.find((o) => o.label === label);
+              setSelectedTypeValue(opt?.value ?? '');
+              setSelectedCategoryValue('');
+            } else {
+              const opt = sortOptions.find((o) => o.label === label);
+              setSelectedSortValue(opt?.value ?? '');
             }
-            selected={activeSheet === 'type' ? selectedTypeLabel : selectedSortLabel}
-            optionGap={activeSheet === 'sort' ? 35 : 30}
-            height={activeSheet === 'type' ? 428 : 322}
-            onSelect={(label) => {
-              if (activeSheet === 'type') {
-                const opt = typeOptions.find((o) => o.label === label);
-                setSelectedTypeValue(opt?.value ?? '');
-                setSelectedCategoryValue('');
-              } else {
-                const opt = sortOptions.find((o) => o.label === label);
-                setSelectedSortValue(opt?.value ?? '');
-              }
-              setActiveSheet(null);
-            }}
-            onClose={() => setActiveSheet(null)}
-          />
-        </View>
-      </Modal>
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      </BottomSheetModal>
     </ScreenLayout>
   );
 }
@@ -246,7 +181,7 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 25,
     alignSelf: 'stretch',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   filterRow: {
     flexDirection: 'row',
@@ -269,7 +204,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
   loadingArea: {
     alignItems: 'center',
@@ -281,22 +216,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  sheetContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
 });

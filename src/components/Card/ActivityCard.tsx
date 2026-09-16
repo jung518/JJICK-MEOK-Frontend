@@ -1,18 +1,11 @@
-import { useState } from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { Typography } from '@/src/components/Typography/Typography';
-import ChipBadge from '@/src/components/Chip/ChipBadge';
+import ChipBadge, { type Tag } from '@/src/components/Chip/ChipBadge';
 import Eyes from '@/src/components/Icon/Eyes';
 import HeartDisabled from '@/assets/images/HeartDisabled.svg';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
-
-type TagVariant = 'MOOD' | 'INTENSITY' | 'DURATION' | 'SIZE' | 'PURPOSE';
-
-type Tag = {
-  label: string;
-  variant: TagVariant;
-};
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 
 type Props = {
   dday: string;
@@ -31,7 +24,7 @@ export default function ActivityCard({
   likeCount,
   thumbnailUrl,
 }: Props) {
-  const [imageError, setImageError] = useState(false);
+  const { hasImage, onError } = useImageWithFallback(thumbnailUrl);
 
   return (
     <View style={styles.container}>
@@ -74,12 +67,12 @@ export default function ActivityCard({
           </View>
         </View>
         <View style={styles.imageWrapper}>
-          {thumbnailUrl && !imageError ? (
+          {hasImage ? (
             <Image
               source={{ uri: thumbnailUrl }}
               style={styles.image}
               resizeMode="cover"
-              onError={() => setImageError(true)}
+              onError={onError}
             />
           ) : (
             <DefaultActivity width={80} height={80} />

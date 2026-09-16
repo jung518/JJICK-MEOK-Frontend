@@ -1,17 +1,8 @@
-import { useState, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  PanResponder,
-  Dimensions,
-} from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import TopNav from '@/src/components/Nav/TopNav';
 import Program from '@/assets/images/Program.svg';
@@ -24,7 +15,12 @@ import Curation from '@/src/components/Card/Curation';
 import Indicator from '@/src/components/Indicator/Indicator';
 import { getTags } from '@/src/api/user';
 import { getHomeData } from '@/src/api/pages';
+import { getActivityTypeLabel, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import { colors } from '@/src/constants/colors';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { CURATION_KEY_BY_TITLE } from '@/src/constants/curationThemes';
 import type { Activity, CurationThemeCard } from '@/src/types/activities';
@@ -81,73 +77,10 @@ const DEFAULT_ICONS: IconConfig[] = [
   { Svg: Club, label: '동아리', route: '/activity-categories/club' },
 ];
 
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
-};
-
-const PULL_THRESHOLD = 60;
-
-function getErrorMessage(error: unknown, fallbackMessage: string) {
-  const isSessionExpired = axios.isAxiosError(error) && error.response?.status === 401;
-  const isNetworkError = axios.isAxiosError(error) && !error.response;
-  const message = isSessionExpired
-    ? '로그인 시간이 만료되었어요. 다시 로그인해주세요.'
-    : isNetworkError
-      ? '네트워크 연결을 확인해주세요.'
-      : fallbackMessage;
-  return { message, isSessionExpired };
-}
-
-function ErrorBox({
-  style,
-  message,
-  onRetry,
-}: {
-  style: object;
-  message: string;
-  onRetry?: () => void;
-}) {
-  return (
-    <View style={style}>
-      <Text style={styles.errorText}>{message}</Text>
-      {onRetry && (
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry} activeOpacity={0.7}>
-          <Text style={styles.retryText}>다시 시도</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
-
 export default function HomeScreen() {
   const navigateOnce = useNavigateOnce();
   const insets = useSafeAreaInsets();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [rankPageIndex, setRankPageIndex] = useState(0);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const {
     data: homeData,
@@ -159,6 +92,8 @@ export default function HomeScreen() {
     queryKey: ['home'],
     queryFn: () => getHomeData(),
   });
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(refetch);
 
   const { data: tagsData } = useQuery({
     queryKey: ['tags', 'ACTIVITY_CATEGORY'],
@@ -175,16 +110,15 @@ export default function HomeScreen() {
   }, [tagsData]);
 
   const featured = homeData?.featured.activities ?? [];
-  const recommended = (homeData?.expandedRecommendation.activities ?? []).filter(
-    (a) => a.deadline >= 0,
+  const recommended = (homeData?.expandedRecommendation.activities ?? []).filter((a) =>
+    isNotExpired(a.deadline),
   );
   // 인기 활동은 백엔드가 정렬해서 내려주므로 프론트에서 재정렬하지 않는다.
-  const displayCards = (homeData?.popular.activities ?? []).filter((a) => a.deadline >= 0);
+  const displayCards = (homeData?.popular.activities ?? []).filter((a) => isNotExpired(a.deadline));
   const rankingPageCount = Math.ceil(displayCards.length / RANKING_PAGE_SIZE);
 
-  refetchRef.current = refetch;
-
-  const { message: homeErrorMessage, isSessionExpired } = getErrorMessage(
+  const { message: homeErrorMessage, isSessionExpired } = useApiErrorMessage(
+    isError,
     error,
     '홈 화면을 불러오지 못했어요. 다시 시도해주세요.',
   );
@@ -193,7 +127,7 @@ export default function HomeScreen() {
   const curationActivities = featured.map(toCurationActivity);
 
   return (
-    <ScreenLayout style={{ backgroundColor: '#FFF' }}>
+    <ScreenLayout style={{ backgroundColor: colors.neutral.white }}>
       <View style={[styles.topNavWrapper, { paddingTop: insets.top }]}>
         <TopNav onSearchPress={() => navigateOnce('/search')} />
       </View>
@@ -206,9 +140,7 @@ export default function HomeScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          onScroll={(e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
-          }}
+          onScroll={onScroll}
           scrollEventThrottle={16}
         >
           <View style={styles.pickSection}>
@@ -260,11 +192,17 @@ export default function HomeScreen() {
                   <Text style={styles.popularTitle}>인기 활동</Text>
                 </View>
                 {isError ? (
-                  <ErrorBox
-                    style={styles.errorBox}
-                    message={homeErrorMessage}
-                    onRetry={!isSessionExpired ? refetch : undefined}
-                  />
+                  <View style={styles.errorBox}>
+                    <ErrorBox
+                      message={homeErrorMessage!}
+                      onRetry={!isSessionExpired ? refetch : undefined}
+                      size="md"
+                      color="primary"
+                      retrySize="md"
+                      retryColor="primary"
+                      retryBorderColor={colors.border.active}
+                    />
+                  </View>
                 ) : (
                   <>
                     <ScrollView
@@ -288,10 +226,7 @@ export default function HomeScreen() {
                               >
                                 <RankingCard
                                   rank={pageIndex * RANKING_PAGE_SIZE + i + 1}
-                                  category={
-                                    ACTIVITY_TYPE_LABEL[activity.activityType] ??
-                                    activity.activityType
-                                  }
+                                  category={getActivityTypeLabel(activity.activityType)}
                                   title={activity.title}
                                   showAD={activity.isAd}
                                   deadline={activity.deadline}
@@ -324,11 +259,17 @@ export default function HomeScreen() {
                 </Text>
               </View>
               {isError ? (
-                <ErrorBox
-                  style={styles.recommendErrorBox}
-                  message={homeErrorMessage}
-                  onRetry={!isSessionExpired ? refetch : undefined}
-                />
+                <View style={styles.recommendErrorBox}>
+                  <ErrorBox
+                    message={homeErrorMessage!}
+                    onRetry={!isSessionExpired ? refetch : undefined}
+                    size="md"
+                    color="primary"
+                    retrySize="md"
+                    retryColor="primary"
+                    retryBorderColor={colors.border.active}
+                  />
+                </View>
               ) : isLoading && !isRefreshing ? (
                 <View style={styles.recommendErrorBox}>
                   <Loading />
@@ -350,9 +291,7 @@ export default function HomeScreen() {
                       onPress={() => navigateOnce(`/detail/${activity.id}`)}
                     >
                       <RecommendationCard
-                        category={
-                          ACTIVITY_TYPE_LABEL[activity.activityType] ?? activity.activityType
-                        }
+                        category={getActivityTypeLabel(activity.activityType)}
                         title={activity.title}
                         hashtags={activity.hashtags}
                         deadline={activity.deadline}
@@ -373,18 +312,18 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   topNavWrapper: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   bottomSpacer: {
     height: 25,
     alignSelf: 'stretch',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   loadingArea: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   scrollContent: {
     paddingBottom: 140,
@@ -395,7 +334,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   pickTitle: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 18,
     fontWeight: '600',
@@ -411,7 +350,7 @@ const styles = StyleSheet.create({
     width: CURATION_ITEM_WIDTH,
   },
   iconSection: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
     height: 100,
     alignItems: 'center',
     justifyContent: 'center',
@@ -435,13 +374,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   iconLabel: {
-    color: '#222',
+    color: colors.text.primary,
     textAlign: 'center',
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
   },
   contentSheet: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
     flexGrow: 1,
   },
   recommendSection: {
@@ -454,14 +393,14 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   recommendTitle: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: -0.36,
   },
   recommendSubtitle: {
-    color: '#666',
+    color: colors.text.secondary,
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     fontWeight: '500',
@@ -484,7 +423,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   popularTitle: {
-    color: '#222',
+    color: colors.text.primary,
     textAlign: 'center',
     fontFamily: 'Pretendard-SemiBold',
     fontWeight: '600',
@@ -510,22 +449,10 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorText: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#222',
-  },
-  retryText: {
-    color: '#222',
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
   },
   rankingPageScroll: {
     height: RANKING_PAGE_HEIGHT,
@@ -548,6 +475,6 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
 });

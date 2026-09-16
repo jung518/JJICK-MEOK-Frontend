@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
@@ -14,6 +15,9 @@ import { postLogin } from '@/src/api/auth';
 import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
+import type { ApiErrorData } from '@/src/types/api';
+import { resolveErrorMessage } from '@/src/utils/apiError';
 
 const isValidEmail = (value: string): boolean => {
   if (/[ㄱ-ㆎ가-힣]/.test(value)) return false;
@@ -60,25 +64,20 @@ export default function EmailLoginScreen() {
       ]);
       setToken(accessToken);
       setRegistrationStatus(registrationStatus);
-
-      if (registrationStatus === 'NOT_STARTED') {
-        router.replace('/(auth)/profile-setup');
-      } else if (registrationStatus === 'PROFILE_COMPLETED') {
-        router.replace('/onboarding/step1');
-      } else {
-        router.replace('/(tabs)/home');
-      }
+      router.replace(getPostAuthRoute(registrationStatus));
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       console.error('[email-login] login error:', error?.response?.data ?? error);
-      const code = error?.response?.data?.code;
-      if (code === 'INVALID_LOGIN') {
-        setLoginError('이메일 또는 비밀번호가 올바르지 않습니다.');
-      } else if (code === 'USER_INACTIVE') {
-        setLoginError('사용할 수 없는 계정입니다.');
-      } else {
-        setLoginError('로그인에 실패했습니다. 다시 시도해주세요.');
-      }
+      setLoginError(
+        resolveErrorMessage(
+          error,
+          {
+            INVALID_LOGIN: '이메일 또는 비밀번호가 올바르지 않습니다.',
+            USER_INACTIVE: '사용할 수 없는 계정입니다.',
+          },
+          '로그인에 실패했습니다. 다시 시도해주세요.',
+        ),
+      );
     },
   });
 

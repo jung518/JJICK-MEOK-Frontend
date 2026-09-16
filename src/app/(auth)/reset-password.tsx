@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { postPasswordReset } from '@/src/api/auth';
+import type { ApiErrorData } from '@/src/types/api';
+import { resolveErrorMessage } from '@/src/utils/apiError';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
@@ -29,12 +32,14 @@ export default function ResetPasswordScreen() {
   const [confirmTouched, setConfirmTouched] = useState(false);
   const [serverError, setServerError] = useState<string | undefined>();
 
-  const conditionsMet = CONDITIONS.map((c) => c.check(password));
+  const conditionsMet = CONDITIONS.map((condition) => condition.check(password));
   const allMet = conditionsMet.every(Boolean);
   const passwordsMatch = password.length > 0 && password === confirm;
   const isComplete = allMet && passwordsMatch;
 
-  const failedLabels = CONDITIONS.filter((_, i) => !conditionsMet[i]).map((c) => c.label);
+  const failedLabels = CONDITIONS.filter((_, i) => !conditionsMet[i]).map(
+    (condition) => condition.label,
+  );
   const passwordError =
     serverError ??
     (passwordTouched && password.length > 0 && !allMet
@@ -51,13 +56,14 @@ export default function ResetPasswordScreen() {
     onSuccess: () => {
       router.replace('/(auth)/login');
     },
-    onError: (error: any) => {
-      const code = error?.response?.data?.code;
-      if (code === 'PASSWORD_SAME_AS_OLD') {
-        setServerError('기존 비밀번호와 동일한 비밀번호로 변경할 수 없어요.');
-      } else {
-        setServerError('비밀번호 재설정에 실패했어요. 다시 시도해주세요.');
-      }
+    onError: (error: AxiosError<ApiErrorData>) => {
+      setServerError(
+        resolveErrorMessage(
+          error,
+          { PASSWORD_SAME_AS_OLD: '기존 비밀번호와 동일한 비밀번호로 변경할 수 없어요.' },
+          '비밀번호 재설정에 실패했어요. 다시 시도해주세요.',
+        ),
+      );
     },
   });
 

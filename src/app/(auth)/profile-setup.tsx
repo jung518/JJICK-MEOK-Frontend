@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
+import type { ApiErrorData } from '@/src/types/api';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import GenderButton from '@/src/components/Button/GenderButton';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
@@ -82,9 +84,20 @@ export default function ProfileSetupScreen() {
   const getAge = (birth: Date): number => {
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
     return age;
+  };
+
+  const getBirthdayError = (
+    length: number,
+    parsed: Date | null,
+    ageValid: boolean,
+  ): string | undefined => {
+    if (length !== 8) return undefined;
+    if (parsed === null) return '존재하지 않은 날짜입니다.';
+    if (!ageValid) return '찍먹은 만 14세 이상부터 만 59세 이하까지 가입할 수 있습니다.';
+    return undefined;
   };
 
   const isNicknameValid = nickname.length >= 2 && nickname.length <= 20;
@@ -96,12 +109,7 @@ export default function ProfileSetupScreen() {
   const isAgeValid = age !== null && age >= 14 && age <= 59;
   const isBirthdayValid = parsedBirth !== null && isAgeValid;
 
-  const birthdayError =
-    birthDate.length === 8 && parsedBirth === null
-      ? '존재하지 않은 날짜입니다.'
-      : birthDate.length === 8 && parsedBirth !== null && !isAgeValid
-        ? '찍먹은 만 14세 이상부터 만 59세 이하까지 가입할 수 있습니다.'
-        : undefined;
+  const birthdayError = getBirthdayError(birthDate.length, parsedBirth, isAgeValid);
 
   const isFormValid =
     isNicknameValid && isBirthdayValid && gender !== null && status !== '' && serviceAgree;
@@ -119,13 +127,13 @@ export default function ProfileSetupScreen() {
         marketingAgreed: marketingAgree,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (profile) => {
       setFormError('');
-      setRegistrationStatus(data.registrationStatus);
+      setRegistrationStatus(profile.registrationStatus);
       saveNickname(nickname);
       router.replace('/(auth)/signup-complete');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       console.error('프로필 생성 실패', error);
       const message = error?.response?.data?.message;
       setFormError(message || '프로필 생성에 실패했어요. 다시 시도해주세요.');

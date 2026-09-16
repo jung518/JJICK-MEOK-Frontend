@@ -12,17 +12,18 @@ import { Loading } from '@/src/components/Loading/Loading';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { Dropdown } from '@/src/components/Filter/Dropdown';
 import ActivityCard from '@/src/components/Card/ActivityCard';
 import CategoryFilter from '@/src/components/Modal/CategoryFilter';
-import { Typography } from '@/src/components/Typography/Typography';
 import { colors } from '@/src/constants/colors';
 import { getCategoryPageData } from '@/src/api/pages';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const PULL_THRESHOLD = 60;
@@ -30,8 +31,21 @@ const PULL_MAX = 80;
 
 type SheetType = 'category' | 'sort' | null;
 
+function getListMessage(
+  apiErrorMessage: string | null | undefined,
+  hasData: boolean,
+  activityCount: number,
+  categoryOptionCount: number,
+): string | undefined {
+  if (apiErrorMessage) return apiErrorMessage;
+  if (!hasData || activityCount > 0) return undefined;
+  return categoryOptionCount === 0
+    ? '선택한 카테고리를 불러오지 못했어요.'
+    : '조건에 맞는 활동이 없어요.';
+}
+
 function toCardProps(activity: HomeActivity) {
-  const dday = activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`;
+  const dday = formatDday(activity.deadline);
   const tags = assignUniqueVariants(pickDiverseTags(activity.hashtags ?? []));
   return {
     dday,
@@ -43,7 +57,7 @@ function toCardProps(activity: HomeActivity) {
   };
 }
 
-type ActivityType = 'PROGRAM' | 'ONE_DAY' | 'EVENT' | 'CLUB';
+export type ActivityType = 'PROGRAM' | 'ONE_DAY' | 'EVENT' | 'CLUB';
 
 type Props = {
   type: ActivityType;
@@ -75,29 +89,31 @@ export default function CategoryListScreen({ type, title }: Props) {
 
   const categoryOptions = data?.categoryOptions ?? [];
   const sortOptions = data?.sortOptions ?? [];
-  const activities = (data?.activities ?? []).filter((a) => a.deadline >= 0);
+  const activities = (data?.activities ?? []).filter((activity) => isNotExpired(activity.deadline));
 
   const selectedCategoryLabel =
-    categoryOptions.find((o) => o.value === selectedCategoryValue)?.label ?? '전체';
+    categoryOptions.find((option) => option.value === selectedCategoryValue)?.label ?? '전체';
   const selectedSortLabel =
-    sortOptions.find((o) => o.value === selectedSortValue)?.label ?? '추천순';
+    sortOptions.find((option) => option.value === selectedSortValue)?.label ?? '추천순';
 
-  const errorMessage = (() => {
-    if (isError) {
-      const err = error as AxiosError;
-      if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-      if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-        return '네트워크 연결을 확인해주세요.';
-      return '활동 목록을 불러오지 못했어요. 다시 시도해주세요.';
-    }
-    if (data && activities.length === 0) {
-      if (categoryOptions.length === 0) return '선택한 카테고리를 불러오지 못했어요.';
-      return '조건에 맞는 활동이 없어요.';
-    }
-    return null;
-  })();
+  const apiError = useApiErrorMessage(
+    isError,
+    error,
+    '활동 목록을 불러오지 못했어요. 다시 시도해주세요.',
+  );
+  const errorMessage = getListMessage(
+    apiError.message,
+    !!data,
+    activities.length,
+    categoryOptions.length,
+  );
+  const isRetriable = apiError.isRetriable;
 
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const resetPull = () => {
+    isPullingRef.current = false;
+    setIsPulling(false);
+    Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -120,21 +136,13 @@ export default function CategoryListScreen({ type, title }: Props) {
           Animated.spring(pullAnim, { toValue: PULL_MAX, useNativeDriver: false }).start();
           refetch().finally(() => {
             isRefreshingRef.current = false;
-            isPullingRef.current = false;
-            setIsPulling(false);
-            Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
+            resetPull();
           });
         } else {
-          isPullingRef.current = false;
-          setIsPulling(false);
-          Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
+          resetPull();
         }
       },
-      onPanResponderTerminate: () => {
-        isPullingRef.current = false;
-        setIsPulling(false);
-        Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
-      },
+      onPanResponderTerminate: resetPull,
     }),
   ).current;
 
@@ -172,25 +180,10 @@ export default function CategoryListScreen({ type, title }: Props) {
             </View>
           ) : errorMessage ? (
             <View style={styles.messageBox}>
-              <Typography
-                size="sm"
-                weight="medium"
-                color="secondary"
-                style={{ textAlign: 'center' }}
-              >
-                {errorMessage}
-              </Typography>
-              {isRetriable && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => refetch()}
-                  activeOpacity={0.7}
-                >
-                  <Typography size="sm" weight="medium" color="secondary">
-                    다시 시도
-                  </Typography>
-                </TouchableOpacity>
-              )}
+              <ErrorBox
+                message={errorMessage}
+                onRetry={isRetriable ? () => refetch() : undefined}
+              />
             </View>
           ) : (
             activities.map((activity, i) => (
@@ -220,19 +213,19 @@ export default function CategoryListScreen({ type, title }: Props) {
               title={activeSheet === 'category' ? '활동 분야 선택' : '정렬'}
               options={
                 activeSheet === 'category'
-                  ? categoryOptions.map((o) => o.label)
-                  : sortOptions.map((o) => o.label)
+                  ? categoryOptions.map((option) => option.label)
+                  : sortOptions.map((option) => option.label)
               }
               selected={activeSheet === 'category' ? selectedCategoryLabel : selectedSortLabel}
               optionGap={activeSheet === 'sort' ? 35 : 30}
               height={activeSheet === 'category' ? 428 : 322}
               onSelect={(label) => {
                 if (activeSheet === 'category') {
-                  const opt = categoryOptions.find((o) => o.label === label);
-                  setSelectedCategoryValue(opt?.value ?? '');
+                  const selectedOption = categoryOptions.find((option) => option.label === label);
+                  setSelectedCategoryValue(selectedOption?.value ?? '');
                 } else {
-                  const opt = sortOptions.find((o) => o.label === label);
-                  setSelectedSortValue(opt?.value ?? '');
+                  const selectedOption = sortOptions.find((option) => option.label === label);
+                  setSelectedSortValue(selectedOption?.value ?? '');
                 }
                 setActiveSheet(null);
               }}
@@ -265,7 +258,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
   pullArea: {
     overflow: 'hidden',
@@ -274,7 +267,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.white,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   sheetContainer: {
@@ -288,12 +285,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
 });

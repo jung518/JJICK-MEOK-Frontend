@@ -56,7 +56,7 @@ export default function OnboardingStep3() {
     queryFn: () => getRegions(),
   });
 
-  const seoulProvince = provinces.find((p) => p.name === SEOUL_LABEL);
+  const seoulProvince = provinces.find((province) => province.name === SEOUL_LABEL);
   const seoulProvinceId = seoulProvince?.id;
 
   const { data: seoulDistricts = [] } = useQuery({
@@ -65,9 +65,9 @@ export default function OnboardingStep3() {
     enabled: !!seoulProvinceId && isSeoulExpanded,
   });
 
-  const provinceNames = provinces.map((p) => p.name);
-  const districtNames = seoulDistricts.map((d) => d.name);
-  const nonSeoulProvinceNames = provinceNames.filter((n) => n !== SEOUL_LABEL);
+  const provinceNames = provinces.map((province) => province.name);
+  const districtNames = seoulDistricts.map((district) => district.name);
+  const nonSeoulProvinceNames = provinceNames.filter((name) => name !== SEOUL_LABEL);
 
   const displayRows = useMemo(() => {
     if (!isSeoulExpanded || seoulDistricts.length === 0) {
@@ -83,62 +83,66 @@ export default function OnboardingStep3() {
     ];
   }, [isSeoulExpanded, provinceNames, districtNames, seoulDistricts.length]);
 
-  const handlePress = (label: string) => {
-    if (!label) return;
+  const toggleSeoulExpanded = () => {
+    setIsSeoulExpanded((prev) => !prev);
+  };
 
-    if (label === SEOUL_LABEL) {
-      setIsSeoulExpanded((prev) => !prev);
+  const toggleSeoulAllSelected = () => {
+    if (isSeoulAllSelected) {
+      setIsSeoulAllSelected(false);
       return;
     }
-
-    if (label === SEOUL_ALL_LABEL) {
-      if (isSeoulAllSelected) {
-        setIsSeoulAllSelected(false);
-      } else {
-        setIsSeoulAllSelected(true);
-        setSelectedLocations((prev) => {
-          const next = new Set(prev);
-          districtNames.forEach((d) => next.delete(d));
-          const nonSeoulSelected = nonSeoulProvinceNames.filter((r) => next.has(r));
-          if (nonSeoulSelected.length > 2) {
-            nonSeoulSelected.slice(2).forEach((r) => next.delete(r));
-          }
-          return next;
-        });
+    setIsSeoulAllSelected(true);
+    setSelectedLocations((prev) => {
+      const next = new Set(prev);
+      districtNames.forEach((districtName) => next.delete(districtName));
+      const selectedNonSeoulProvinces = nonSeoulProvinceNames.filter((provinceName) =>
+        next.has(provinceName),
+      );
+      if (selectedNonSeoulProvinces.length > 2) {
+        selectedNonSeoulProvinces.slice(2).forEach((provinceName) => next.delete(provinceName));
       }
-      return;
-    }
+      return next;
+    });
+  };
 
-    if (districtNames.includes(label)) {
-      if (isSeoulAllSelected) return;
-      setSelectedLocations((prev) => {
-        const next = new Set(prev);
-        if (next.has(label)) {
-          next.delete(label);
-        } else if (next.size < 3) {
-          next.add(label);
-        }
-        return next;
-      });
-      return;
-    }
+  const toggleDistrict = (districtName: string) => {
+    if (isSeoulAllSelected) return;
+    setSelectedLocations((prev) => {
+      const next = new Set(prev);
+      if (next.has(districtName)) {
+        next.delete(districtName);
+      } else if (next.size < 3) {
+        next.add(districtName);
+      }
+      return next;
+    });
+  };
 
-    // 비서울 시/도
+  const toggleProvince = (provinceName: string) => {
     const limit = isSeoulAllSelected ? 2 : 3;
     setSelectedLocations((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) {
-        next.delete(label);
+      if (next.has(provinceName)) {
+        next.delete(provinceName);
       } else {
-        const currentCount = isSeoulAllSelected
-          ? nonSeoulProvinceNames.filter((r) => next.has(r)).length
+        const selectedCount = isSeoulAllSelected
+          ? nonSeoulProvinceNames.filter((name) => next.has(name)).length
           : next.size;
-        if (currentCount < limit) {
-          next.add(label);
+        if (selectedCount < limit) {
+          next.add(provinceName);
         }
       }
       return next;
     });
+  };
+
+  const handlePress = (label: string) => {
+    if (!label) return;
+    if (label === SEOUL_LABEL) return toggleSeoulExpanded();
+    if (label === SEOUL_ALL_LABEL) return toggleSeoulAllSelected();
+    if (districtNames.includes(label)) return toggleDistrict(label);
+    return toggleProvince(label);
   };
 
   const isSelected = (label: string) => {
@@ -160,12 +164,12 @@ export default function OnboardingStep3() {
     if (isSeoulAllSelected) {
       result.push(SEOUL_LABEL);
     } else {
-      districtNames.forEach((d) => {
-        if (selectedLocations.has(d)) result.push(d);
+      districtNames.forEach((districtName) => {
+        if (selectedLocations.has(districtName)) result.push(districtName);
       });
     }
-    nonSeoulProvinceNames.forEach((r) => {
-      if (selectedLocations.has(r)) result.push(r);
+    nonSeoulProvinceNames.forEach((provinceName) => {
+      if (selectedLocations.has(provinceName)) result.push(provinceName);
     });
     return result;
   }, [isSeoulAllSelected, districtNames, selectedLocations, nonSeoulProvinceNames]);
@@ -184,8 +188,8 @@ export default function OnboardingStep3() {
 
   const nameToId = useMemo(() => {
     const map: Record<string, number> = {};
-    provinces.forEach((p) => (map[p.name] = p.id));
-    seoulDistricts.forEach((d) => (map[d.name] = d.id));
+    provinces.forEach((province) => (map[province.name] = province.id));
+    seoulDistricts.forEach((district) => (map[district.name] = district.id));
     return map;
   }, [provinces, seoulDistricts]);
 
@@ -194,12 +198,16 @@ export default function OnboardingStep3() {
     if (isSeoulAllSelected && nameToId[SEOUL_ALL_LABEL]) {
       ids.push(nameToId[SEOUL_ALL_LABEL]);
     } else {
-      districtNames.forEach((d) => {
-        if (selectedLocations.has(d) && nameToId[d]) ids.push(nameToId[d]);
+      districtNames.forEach((districtName) => {
+        if (selectedLocations.has(districtName) && nameToId[districtName]) {
+          ids.push(nameToId[districtName]);
+        }
       });
     }
-    nonSeoulProvinceNames.forEach((r) => {
-      if (selectedLocations.has(r) && nameToId[r]) ids.push(nameToId[r]);
+    nonSeoulProvinceNames.forEach((provinceName) => {
+      if (selectedLocations.has(provinceName) && nameToId[provinceName]) {
+        ids.push(nameToId[provinceName]);
+      }
     });
     return ids;
   };

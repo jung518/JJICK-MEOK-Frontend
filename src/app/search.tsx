@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -14,19 +14,15 @@ import { colors } from '@/src/constants/colors';
 import { searchActivities } from '@/src/api/activities';
 import type { ActivitySummary } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday, getDaysLeftFromDate, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-function getDaysLeft(activity: ActivitySummary) {
-  return Math.ceil(
-    (new Date(activity.recruitEndAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-}
-
 function toCardProps(activity: ActivitySummary) {
-  const daysLeft = getDaysLeft(activity);
-  const dday = daysLeft <= 0 ? 'D-day' : `D-${daysLeft}`;
+  const dday = formatDday(getDaysLeftFromDate(activity.recruitEndAt));
   const tags = assignUniqueVariants(pickDiverseTags(activity.tags));
   return {
     dday,
@@ -63,18 +59,15 @@ export default function SearchScreen() {
       (error as AxiosError)?.response?.status !== 401 && failureCount < 1,
   });
 
-  const errorMessage = (() => {
-    if (!isError) return null;
-    const err = error as AxiosError;
-    if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-    if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-      return '네트워크 연결을 확인해주세요.';
-    return '검색 결과를 불러오지 못했어요. 다시 시도해주세요.';
-  })();
+  const { message: errorMessage, isRetriable } = useApiErrorMessage(
+    isError,
+    error,
+    '검색 결과를 불러오지 못했어요. 다시 시도해주세요.',
+  );
 
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
-
-  const visibleResults = (results ?? []).filter((item) => getDaysLeft(item) >= 0);
+  const visibleResults = (results ?? []).filter((activity) =>
+    isNotExpired(getDaysLeftFromDate(activity.recruitEndAt)),
+  );
 
   const handleSearch = (text: string) => {
     setSearchText(text);
@@ -94,16 +87,12 @@ export default function SearchScreen() {
 
         {errorMessage ? (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-            {isRetriable && (
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => refetch()}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.retryText}>다시 시도</Text>
-              </TouchableOpacity>
-            )}
+            <ErrorBox
+              message={errorMessage}
+              onRetry={isRetriable ? () => refetch() : undefined}
+              size="md"
+              retrySize="md"
+            />
           </View>
         ) : isLoading ? (
           <View style={styles.emptyState}>
@@ -126,13 +115,13 @@ export default function SearchScreen() {
                 {`'${searchText}'에 대한 검색 결과`}
               </Typography>
               <View>
-                {visibleResults.map((item, i) => (
-                  <View key={item.id}>
+                {visibleResults.map((activity, i) => (
+                  <View key={activity.id}>
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() => navigateOnce(`/detail/${item.id}`)}
+                      onPress={() => navigateOnce(`/detail/${activity.id}`)}
                     >
-                      <ActivityCard {...toCardProps(item)} />
+                      <ActivityCard {...toCardProps(activity)} />
                     </TouchableOpacity>
                     {i < visibleResults.length - 1 && (
                       <View style={styles.cardDividerRow}>
@@ -177,7 +166,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
   emptyState: {
     paddingTop: 23,
@@ -191,23 +180,5 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     alignItems: 'center' as const,
     gap: 16,
-  },
-  errorText: {
-    color: colors.text.secondary,
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
-    textAlign: 'center' as const,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  retryText: {
-    color: colors.text.secondary,
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
   },
 });

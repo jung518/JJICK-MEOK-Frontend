@@ -42,7 +42,7 @@ export default function OnboardingStep5() {
       queryClient.invalidateQueries({ queryKey: ['users', 'me', 'profile'] });
       router.replace('/onboarding/result');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('온보딩 완료 실패', error);
       setCompleteError('온보딩 완료에 실패했어요. 다시 시도해주세요.');
     },

@@ -1,21 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  PanResponder,
   Image,
   Linking,
   Alert,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { Loading } from '@/src/components/Loading/Loading';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import EyeOn from '@/assets/images/EyeOn.svg';
 import HeartDisabled from '@/assets/images/HeartDisabled.svg';
 import CloseLarge from '@/assets/images/CloseLarge.svg';
@@ -28,23 +25,20 @@ import ChipBadge from '@/src/components/Chip/ChipBadge';
 import { Typography } from '@/src/components/Typography/Typography';
 import { colors } from '@/src/constants/colors';
 import { getDetailData } from '@/src/api/pages';
-import { addFavorite, deleteFavorite } from '@/src/api/favorites';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
+import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
+import { useToggleFavorite } from '@/src/hooks/useToggleFavorite';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 
 const TABS = [
   { key: 'info', label: '정보' },
   { key: 'review', label: '후기' },
 ];
 
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
-};
-
 const BOTTOM_BAR_HEIGHT = 114;
-const PULL_THRESHOLD = 60;
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -71,79 +65,32 @@ function formatPrice(price: number) {
 
 export default function ActivityDetailPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const activityId = Number(id);
 
   const [activeTab, setActiveTab] = useState('info');
-  const [saved, setSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [zoomed, setZoomed] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['detail', activityId],
     queryFn: () => getDetailData(activityId),
     enabled: !!activityId,
   });
-  refetchRef.current = refetch;
 
-  const errorMessage = (() => {
-    if (!isError) return null;
-    const err = error as AxiosError;
-    if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-    if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-      return '네트워크 연결을 확인해주세요.';
-    return '활동 정보를 불러오지 못했어요. 다시 시도해주세요.';
-  })();
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(refetch);
 
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const { message: errorMessage, isRetriable } = useApiErrorMessage(
+    isError,
+    error,
+    '활동 정보를 불러오지 못했어요. 다시 시도해주세요.',
+  );
 
-  useEffect(() => {
-    if (data?.liked !== undefined) {
-      setSaved(data.liked);
-    }
-  }, [data?.liked]);
+  const { hasImage, onError: onImageError } = useImageWithFallback(data?.thumbnailUrl);
 
-  useEffect(() => {
-    setImageError(false);
-  }, [data?.thumbnailUrl]);
-
-  const hasImage = !!data?.thumbnailUrl && !imageError;
-
+  const { saved, toggle: handleSavePressRaw } = useToggleFavorite(activityId, data?.liked);
   const handleSavePress = () => {
-    if (!data || isSaving) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const nextSaved = !saved;
-    setSaved(nextSaved);
-    setIsSaving(true);
-    const request = nextSaved ? addFavorite(activityId) : deleteFavorite(activityId);
-    request
-      .then(() => queryClient.invalidateQueries({ queryKey: ['favorites-page'] }))
-      .catch(() => setSaved(!nextSaved))
-      .finally(() => setIsSaving(false));
+    if (!data) return;
+    handleSavePressRaw();
   };
 
   const infoRows = data
@@ -181,9 +128,7 @@ export default function ActivityDetailPage() {
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={(e) => {
-              scrollYRef.current = e.nativeEvent.contentOffset.y;
-            }}
+            onScroll={onScroll}
             scrollEventThrottle={16}
           >
             {isLoading ? (
@@ -192,25 +137,7 @@ export default function ActivityDetailPage() {
               </View>
             ) : errorMessage ? (
               <View style={styles.messageBox}>
-                <Typography
-                  size="sm"
-                  weight="medium"
-                  color="secondary"
-                  style={{ textAlign: 'center' }}
-                >
-                  {errorMessage}
-                </Typography>
-                {isRetriable && (
-                  <TouchableOpacity
-                    style={styles.retryButton}
-                    onPress={() => refetch()}
-                    activeOpacity={0.7}
-                  >
-                    <Typography size="sm" weight="medium" color="secondary">
-                      다시 시도
-                    </Typography>
-                  </TouchableOpacity>
-                )}
+                <ErrorBox message={errorMessage} onRetry={isRetriable ? () => refetch() : undefined} />
               </View>
             ) : (
               <>
@@ -218,10 +145,10 @@ export default function ActivityDetailPage() {
                   <View style={styles.thumbnail}>
                     {hasImage ? (
                       <Image
-                        source={{ uri: data.thumbnailUrl }}
+                        source={{ uri: data!.thumbnailUrl }}
                         style={StyleSheet.absoluteFill}
                         resizeMode="cover"
-                        onError={() => setImageError(true)}
+                        onError={onImageError}
                       />
                     ) : (
                       <DefaultActivity width={135} height={135} />
@@ -235,18 +162,12 @@ export default function ActivityDetailPage() {
 
                   <View style={styles.metaRow}>
                     <ChipBadge
-                      label={
-                        ACTIVITY_TYPE_LABEL[data?.activityType ?? ''] ?? data?.activityType ?? ''
-                      }
+                      label={data?.activityType ? getActivityTypeLabel(data.activityType) : ''}
                       variant="category"
                     />
                     <View style={styles.statsRow}>
                       <Typography size="sm" weight="semiBold" style={styles.DDay}>
-                        {data?.deadline != null
-                          ? data.deadline <= 0
-                            ? 'D-day'
-                            : `D-${data.deadline}`
-                          : '-'}
+                        {data?.deadline != null ? formatDday(data.deadline) : '-'}
                       </Typography>
                       <View style={styles.statItem}>
                         <EyeOn width={14} height={14} color="#CCCCCC" />
@@ -307,10 +228,10 @@ export default function ActivityDetailPage() {
                       {hasImage && (
                         <View style={styles.posterPlaceholder}>
                           <Image
-                            source={{ uri: data.thumbnailUrl }}
+                            source={{ uri: data!.thumbnailUrl }}
                             style={StyleSheet.absoluteFill}
                             resizeMode="cover"
-                            onError={() => setImageError(true)}
+                            onError={onImageError}
                           />
                         </View>
                       )}
@@ -403,13 +324,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   card: {
     backgroundColor: colors.neutral.white,

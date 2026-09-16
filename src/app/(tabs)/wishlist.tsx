@@ -1,13 +1,5 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Modal,
-  TouchableOpacity,
-  PanResponder,
-} from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -23,21 +15,22 @@ import CardSaved from '@/src/components/Card/CardSaved';
 import { getFavoritesPageData } from '@/src/api/pages';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import {
+  ACTIVITY_TYPE_LABEL,
+  formatDday,
+  getActivityTypeLabel,
+  isNotExpired,
+} from '@/src/utils/activity';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
+import { TwoColumnGrid } from '@/src/components/Layout/TwoColumnGrid';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
-
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
-};
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 
 const SORT_MAP: Record<string, 'saved' | 'deadline'> = {
   담은순: 'saved',
   마감순: 'deadline',
 };
-
-const PULL_THRESHOLD = 60;
 
 export default function ProgramListScreen() {
   const router = useRouter();
@@ -46,29 +39,6 @@ export default function ProgramListScreen() {
   const [selectedSort, setSelectedSort] = useState('담은순');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          setRemovedIds(new Set());
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const {
     data: rawActivities = [],
@@ -82,7 +52,11 @@ export default function ProgramListScreen() {
       return activities;
     },
   });
-  refetchRef.current = refetch;
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(() => {
+    setRemovedIds(new Set());
+    return refetch();
+  });
 
   const activities = useMemo(() => {
     if (SORT_MAP[selectedSort] === 'deadline') {
@@ -113,9 +87,9 @@ export default function ProgramListScreen() {
 
   const filteredActivities = activities.filter((activity: HomeActivity) => {
     if (removedIds.has(activity.id)) return false;
-    if (activity.deadline < 0) return false;
+    if (!isNotExpired(activity.deadline)) return false;
     if (selectedTab === '전체') return true;
-    return ACTIVITY_TYPE_LABEL[activity.activityType] === selectedTab;
+    return getActivityTypeLabel(activity.activityType) === selectedTab;
   });
 
   const handleRemove = (activityId: number) => {
@@ -148,25 +122,18 @@ export default function ProgramListScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          onScroll={(e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
-          }}
+          onScroll={onScroll}
           scrollEventThrottle={16}
         >
           {isError ? (
             <View style={styles.emptyState}>
-              <Typography size="lg" weight="medium" color="tertiary" style={styles.emptyText}>
-                {'찜한 활동을 불러오지 못했어요.\n다시 시도해주세요.'}
-              </Typography>
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => refetch()}
-                activeOpacity={0.7}
-              >
-                <Typography size="sm" weight="medium" color="secondary">
-                  다시 시도
-                </Typography>
-              </TouchableOpacity>
+              <ErrorBox
+                message={'찜한 활동을 불러오지 못했어요.\n다시 시도해주세요.'}
+                onRetry={() => refetch()}
+                size="lg"
+                color="tertiary"
+                style={styles.emptyText}
+              />
             </View>
           ) : isLoading && !isRefreshing ? (
             <View style={styles.emptyState}>
@@ -183,63 +150,45 @@ export default function ProgramListScreen() {
               <View style={styles.filterRow}>
                 <Dropdown label={selectedSort} onPress={() => setShowSortSheet(true)} />
               </View>
-              <View style={styles.grid}>
-                {Array.from({ length: Math.ceil(filteredActivities.length / 2) }, (_, rowIndex) => {
-                  const rowItems = filteredActivities.slice(rowIndex * 2, rowIndex * 2 + 2);
-                  const isLastRow = rowIndex === Math.ceil(filteredActivities.length / 2) - 1;
-                  const isOddTotal = filteredActivities.length % 2 !== 0;
-                  return (
-                    <View key={rowItems[0]?.id ?? rowIndex} style={styles.row}>
-                      {rowItems.map((activity) => (
-                        <TouchableOpacity
-                          key={activity.id}
-                          style={styles.gridItem}
-                          activeOpacity={0.9}
-                          onPress={() => navigateOnce(`/detail/${activity.id}`)}
-                        >
-                          <CardSaved
-                            activityId={activity.id}
-                            dday={activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`}
-                            title={activity.title}
-                            tags={assignUniqueVariants(pickDiverseTags(activity.hashtags))}
-                            thumbnailUrl={activity.thumbnailUrl}
-                            onRemove={handleRemove}
-                          />
-                        </TouchableOpacity>
-                      ))}
-                      {isLastRow && isOddTotal && <View style={styles.gridItem} />}
-                    </View>
-                  );
-                })}
-              </View>
+              <TwoColumnGrid
+                items={filteredActivities}
+                keyExtractor={(activity) => activity.id}
+                renderItem={(activity) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => navigateOnce(`/detail/${activity.id}`)}
+                  >
+                    <CardSaved
+                      activityId={activity.id}
+                      dday={formatDday(activity.deadline)}
+                      title={activity.title}
+                      tags={assignUniqueVariants(pickDiverseTags(activity.hashtags))}
+                      thumbnailUrl={activity.thumbnailUrl}
+                      onRemove={handleRemove}
+                    />
+                  </TouchableOpacity>
+                )}
+              />
             </>
           )}
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </View>
 
-      <Modal
-        visible={showSortSheet}
-        transparent
-        statusBarTranslucent
-        onRequestClose={() => setShowSortSheet(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setShowSortSheet(false)} />
-        <View style={styles.sheetContainer}>
-          <CategoryFilter
-            title="정렬"
-            options={['담은순', '마감순']}
-            selected={selectedSort}
-            optionGap={35}
-            height={322}
-            onSelect={(item) => {
-              setSelectedSort(item);
-              setShowSortSheet(false);
-            }}
-            onClose={() => setShowSortSheet(false)}
-          />
-        </View>
-      </Modal>
+      <BottomSheetModal visible={showSortSheet} onClose={() => setShowSortSheet(false)}>
+        <CategoryFilter
+          title="정렬"
+          options={['담은순', '마감순']}
+          selected={selectedSort}
+          optionGap={35}
+          height={322}
+          onSelect={(item) => {
+            setSelectedSort(item);
+            setShowSortSheet(false);
+          }}
+          onClose={() => setShowSortSheet(false)}
+        />
+      </BottomSheetModal>
     </ScreenLayout>
   );
 }
@@ -248,7 +197,7 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 25,
     alignSelf: 'stretch',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   filterRow: {
     flexDirection: 'row',
@@ -259,45 +208,16 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 140,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  sheetContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  grid: {
-    gap: 29,
-    paddingTop: 15,
-    paddingHorizontal: 26,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 19,
-  },
-  gridItem: {
-    flex: 1,
-  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 40,
+    gap: 16,
   },
   emptyText: {
     textAlign: 'center',
     lineHeight: 22,
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   scrollView: {
     flex: 1,

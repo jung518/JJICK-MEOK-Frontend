@@ -2,8 +2,6 @@ import { Text, View, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
-import { Typography } from '@/src/components/Typography/Typography';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import { Loading } from '@/src/components/Loading/Loading';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
@@ -15,6 +13,10 @@ import { colors } from '@/src/constants/colors';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import { getCurationDetailPageData } from '@/src/api/pages';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
+import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import { TwoColumnGrid } from '@/src/components/Layout/TwoColumnGrid';
 
 const TAB_TO_ROUTE: Record<TabKey, string> = {
   home: '/home',
@@ -22,13 +24,6 @@ const TAB_TO_ROUTE: Record<TabKey, string> = {
   personalize: '/custom',
   heart: '/wishlist',
   my: '/mypage',
-};
-
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
 };
 
 export default function CurationDetailScreen() {
@@ -58,17 +53,9 @@ export default function CurationDetailScreen() {
 
   const hasError = isError || !curationKey;
 
-  const errorMessage = (() => {
-    if (!curationKey) return '큐레이션 정보를 찾을 수 없어요.';
-    if (!isError) return null;
-    const err = error as AxiosError;
-    if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-    if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-      return '네트워크 연결을 확인해주세요.';
-    return '큐레이션 정보를 불러오지 못했어요. 다시 시도해주세요.';
-  })();
-
-  const isRetriable = hasError && !!curationKey && (error as AxiosError)?.response?.status !== 401;
+  const apiError = useApiErrorMessage(isError, error, '큐레이션 정보를 불러오지 못했어요. 다시 시도해주세요.');
+  const errorMessage = !curationKey ? '큐레이션 정보를 찾을 수 없어요.' : apiError.message;
+  const isRetriable = hasError && !!curationKey && apiError.isRetriable;
 
   const retry = () => {
     refetch();
@@ -79,8 +66,8 @@ export default function CurationDetailScreen() {
   const uniqueActivities = Array.from(new Map(allActivities.map((a) => [a.id, a])).values());
   const curationActivities = uniqueActivities.map((activity) => ({
     id: activity.id,
-    category: ACTIVITY_TYPE_LABEL[activity.activityType] ?? activity.activityType,
-    dday: activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`,
+    category: getActivityTypeLabel(activity.activityType),
+    dday: formatDday(activity.deadline),
     title: activity.title,
     thumbnailUrl: activity.thumbnailUrl,
     initialSaved: activity.liked,
@@ -91,16 +78,7 @@ export default function CurationDetailScreen() {
       <ArrowLeftBar onPress={() => router.back()} />
       {hasError ? (
         <View style={styles.errorBox}>
-          <Typography size="sm" weight="medium" color="secondary" style={styles.errorText}>
-            {errorMessage}
-          </Typography>
-          {isRetriable && (
-            <TouchableOpacity style={styles.retryButton} onPress={retry} activeOpacity={0.7}>
-              <Typography size="sm" weight="medium" color="secondary">
-                다시 시도
-              </Typography>
-            </TouchableOpacity>
-          )}
+          <ErrorBox message={errorMessage!} onRetry={isRetriable ? retry : undefined} />
         </View>
       ) : (
         <ScrollView
@@ -132,35 +110,26 @@ export default function CurationDetailScreen() {
                 <Loading />
               </View>
             ) : (
-              <View style={styles.grid}>
-                {Array.from({ length: Math.ceil(curationActivities.length / 2) }, (_, rowIndex) => {
-                  const rowItems = curationActivities.slice(rowIndex * 2, rowIndex * 2 + 2);
-                  const isLastRow = rowIndex === Math.ceil(curationActivities.length / 2) - 1;
-                  const isOddTotal = curationActivities.length % 2 !== 0;
-                  return (
-                    <View key={rowItems[0]?.id ?? rowIndex} style={styles.row}>
-                      {rowItems.map((activity) => (
-                        <TouchableOpacity
-                          key={activity.id}
-                          style={styles.gridItem}
-                          activeOpacity={0.9}
-                          onPress={() => navigateOnce(`/detail/${activity.id}`)}
-                        >
-                          <CurationDetailCard
-                            activityId={activity.id}
-                            category={activity.category}
-                            dday={activity.dday}
-                            title={activity.title}
-                            thumbnailUrl={activity.thumbnailUrl}
-                            initialSaved={activity.initialSaved}
-                          />
-                        </TouchableOpacity>
-                      ))}
-                      {isLastRow && isOddTotal && <View style={styles.gridItem} />}
-                    </View>
-                  );
-                })}
-              </View>
+              <TwoColumnGrid
+                items={curationActivities}
+                keyExtractor={(activity) => activity.id}
+                style={styles.grid}
+                renderItem={(activity) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => navigateOnce(`/detail/${activity.id}`)}
+                  >
+                    <CurationDetailCard
+                      activityId={activity.id}
+                      category={activity.category}
+                      dday={activity.dday}
+                      title={activity.title}
+                      thumbnailUrl={activity.thumbnailUrl}
+                      initialSaved={activity.initialSaved}
+                    />
+                  </TouchableOpacity>
+                )}
+              />
             )}
             {isFetchingNextPage && (
               <View style={styles.nextPageLoadingBox}>
@@ -191,13 +160,13 @@ const styles = StyleSheet.create({
     marginTop: 17,
   },
   title: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 24,
     letterSpacing: -0.48,
   },
   subtitle: {
-    color: '#666',
+    color: colors.text.secondary,
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     letterSpacing: -0.28,
@@ -226,27 +195,10 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     gap: 16,
   },
-  errorText: {
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
   grid: {
     gap: 22,
     paddingTop: 27,
     paddingHorizontal: 26,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 19,
-  },
-  gridItem: {
-    flex: 1,
   },
   navWrapper: {
     position: 'absolute',

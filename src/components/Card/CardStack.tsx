@@ -40,39 +40,54 @@ export default function CardStack({ activities, onPressCard, onSwipe, onEndReach
   const panOffset = useSharedValue(0);
 
   useEffect(() => {
-    const initial = new Set(activities.filter((a) => a.favoriteId).map((a) => a.id));
+    const initial = new Set(
+      activities.filter((activity) => activity.favoriteId).map((activity) => activity.id),
+    );
     savedIdsRef.current = initial;
     setSavedIds(initial);
   }, [activities]);
 
-  const handleSave = useCallback((id: string) => {
-    if (inFlightIds.current.has(id)) return;
-    inFlightIds.current.add(id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const isSaved = savedIdsRef.current.has(id);
+  const toggleSavedLocally = useCallback((id: string): boolean => {
+    const wasSaved = savedIdsRef.current.has(id);
     const next = new Set(savedIdsRef.current);
-    if (isSaved) next.delete(id);
+    if (wasSaved) next.delete(id);
     else next.add(id);
     savedIdsRef.current = next;
     setSavedIds(new Set(next));
+    return wasSaved;
+  }, []);
 
-    const apiCall = isSaved ? deleteFavorite(Number(id)) : addFavorite(Number(id));
-    apiCall
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['favorites-page'] });
-      })
-      .catch(() => {
-        const rollback = new Set(savedIdsRef.current);
-        if (isSaved) rollback.add(id);
-        else rollback.delete(id);
-        savedIdsRef.current = rollback;
-        setSavedIds(new Set(rollback));
-      })
-      .finally(() => {
-        inFlightIds.current.delete(id);
-      });
-  }, [queryClient]);
+  const syncFavoriteWithServer = useCallback(
+    (id: string, wasSaved: boolean) => {
+      const apiCall = wasSaved ? deleteFavorite(Number(id)) : addFavorite(Number(id));
+      apiCall
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['favorites-page'] });
+        })
+        .catch(() => {
+          const rollback = new Set(savedIdsRef.current);
+          if (wasSaved) rollback.add(id);
+          else rollback.delete(id);
+          savedIdsRef.current = rollback;
+          setSavedIds(new Set(rollback));
+        })
+        .finally(() => {
+          inFlightIds.current.delete(id);
+        });
+    },
+    [queryClient],
+  );
+
+  const handleSave = useCallback(
+    (id: string) => {
+      if (inFlightIds.current.has(id)) return;
+      inFlightIds.current.add(id);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const wasSaved = toggleSavedLocally(id);
+      syncFavoriteWithServer(id, wasSaved);
+    },
+    [toggleSavedLocally, syncFavoriteWithServer],
+  );
 
   const current = activities[currentIndex];
   const prev = activities[currentIndex - 1];
@@ -145,23 +160,25 @@ export default function CardStack({ activities, onPressCard, onSwipe, onEndReach
 
   const pan = Gesture.Pan()
     .minDistance(5)
-    .onUpdate((e) => {
-      panOffset.value = e.translationX;
+    .onUpdate((event) => {
+      panOffset.value = event.translationX;
     })
-    .onEnd((e) => {
-      const shouldGoLeft = e.translationX < -SWIPE_THRESHOLD || e.velocityX < -VELOCITY_THRESHOLD;
-      const shouldGoRight = e.translationX > SWIPE_THRESHOLD || e.velocityX > VELOCITY_THRESHOLD;
+    .onEnd((event) => {
+      const shouldGoLeft =
+        event.translationX < -SWIPE_THRESHOLD || event.velocityX < -VELOCITY_THRESHOLD;
+      const shouldGoRight =
+        event.translationX > SWIPE_THRESHOLD || event.velocityX > VELOCITY_THRESHOLD;
 
       if (shouldGoLeft && next) {
         panOffset.value = withSpring(
           -SLOT,
-          { velocity: e.velocityX, damping: 20, stiffness: 180, overshootClamping: true },
+          { velocity: event.velocityX, damping: 20, stiffness: 180, overshootClamping: true },
           () => scheduleOnRN(goLeft),
         );
       } else if (shouldGoRight && prev) {
         panOffset.value = withSpring(
           SLOT,
-          { velocity: e.velocityX, damping: 20, stiffness: 180, overshootClamping: true },
+          { velocity: event.velocityX, damping: 20, stiffness: 180, overshootClamping: true },
           () => scheduleOnRN(goRight),
         );
       } else {

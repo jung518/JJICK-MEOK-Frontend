@@ -1,4 +1,5 @@
 import { View, StyleSheet } from 'react-native';
+import { colors } from '@/src/constants/colors';
 
 type Props = {
   count: number;
@@ -30,9 +31,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   active: {
-    backgroundColor: '#FFE066',
+    backgroundColor: colors.primary.main,
   },
   inactive: {
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, Platform } from 'react-native';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 import DefaultActivitySvg from '@/assets/images/DefaultActivity.svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -16,7 +17,6 @@ import { colors } from '@/src/constants/colors';
 import type { Activity, Tag } from '@/src/types/activities';
 
 export type { Activity, Tag };
-export type { TagType } from '@/src/types/activities';
 
 const SCREEN_WIDTH = Math.min(Dimensions.get('window').width, 430);
 export const CARD_WIDTH = SCREEN_WIDTH - 40;
@@ -33,40 +33,58 @@ type Props = {
   onHeartPressIn?: () => void;
 };
 
-function GradientBorderAnimation({ w, h }: { w: number; h: number }) {
+function useNativeBorderAngle(enabled: boolean) {
   const angle = useSharedValue(0);
-  const borderOpacity = useSharedValue(0);
-  const [webDeg, setWebDeg] = useState(0);
 
   useEffect(() => {
-    borderOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
-    if (Platform.OS === 'web') {
-      let rafId: number;
-      let start: number | null = null;
-      const tick = (ts: number) => {
-        if (start === null) start = ts;
-        setWebDeg((((ts - start) % BORDER_DURATION) / BORDER_DURATION) * 360);
-        rafId = requestAnimationFrame(tick);
-      };
-      rafId = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(rafId);
-    }
+    if (!enabled) return;
     angle.value = withRepeat(
       withTiming(1, { duration: BORDER_DURATION, easing: Easing.linear }),
       -1,
       false,
     );
-  }, [angle, borderOpacity]);
+  }, [enabled, angle]);
 
-  const spinnerSize = Math.ceil(Math.sqrt(w * w + h * h)) + 10;
+  return angle;
+}
+
+function useWebBorderAngleDeg(enabled: boolean) {
+  const [webDeg, setWebDeg] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let rafId: number;
+    let start: number | null = null;
+    const tick = (ts: number) => {
+      if (start === null) start = ts;
+      setWebDeg((((ts - start) % BORDER_DURATION) / BORDER_DURATION) * 360);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [enabled]);
+
+  return webDeg;
+}
+
+function GradientBorderAnimation({ width, height }: { width: number; height: number }) {
+  const isWeb = Platform.OS === 'web';
+  const borderOpacity = useSharedValue(0);
+  const nativeAngle = useNativeBorderAngle(!isWeb);
+  const webAngleDeg = useWebBorderAngleDeg(isWeb);
+
+  useEffect(() => {
+    borderOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
+  }, [borderOpacity]);
+
+  const spinnerSize = Math.ceil(Math.sqrt(width * width + height * height)) + 10;
 
   const nativeStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${angle.value * 360}deg` }],
+    transform: [{ rotate: `${nativeAngle.value * 360}deg` }],
     opacity: borderOpacity.value,
   }));
 
-  const spinnerStyle =
-    Platform.OS === 'web' ? { transform: [{ rotate: `${webDeg}deg` }] } : nativeStyle;
+  const spinnerStyle = isWeb ? { transform: [{ rotate: `${webAngleDeg}deg` }] } : nativeStyle;
 
   return (
     <Animated.View
@@ -75,8 +93,8 @@ function GradientBorderAnimation({ w, h }: { w: number; h: number }) {
           position: 'absolute',
           width: spinnerSize,
           height: spinnerSize,
-          top: (h - spinnerSize) / 2,
-          left: (w - spinnerSize) / 2,
+          top: (height - spinnerSize) / 2,
+          left: (width - spinnerSize) / 2,
         },
         spinnerStyle,
       ]}
@@ -94,11 +112,7 @@ export default function SwipeCard({
   onHeartPressIn,
 }: Props) {
   const bg = '#BEBEBE';
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [activity.imageUrl]);
+  const { hasImage, onError } = useImageWithFallback(activity.imageUrl);
 
   const handleHeartPressIn = () => {
     onSave?.();
@@ -116,7 +130,7 @@ export default function SwipeCard({
         backgroundColor: bg,
       }}
     >
-      {isFront && <GradientBorderAnimation w={CARD_WIDTH} h={CARD_HEIGHT} />}
+      {isFront && <GradientBorderAnimation width={CARD_WIDTH} height={CARD_HEIGHT} />}
       <View
         style={{
           position: 'absolute',
@@ -129,12 +143,12 @@ export default function SwipeCard({
           backgroundColor: bg,
         }}
       >
-        {activity.imageUrl && !imageError ? (
+        {hasImage ? (
           <Image
             source={{ uri: activity.imageUrl }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
-            onError={() => setImageError(true)}
+            onError={onError}
           />
         ) : (
           <DefaultActivitySvg
@@ -209,7 +223,7 @@ const styles = StyleSheet.create({
   },
   semiBold: {
     fontFamily: 'Pretendard-SemiBold',
-    color: '#FFFFFF',
+    color: colors.neutral.white,
   },
   dday: {
     color: colors.text.secondary,

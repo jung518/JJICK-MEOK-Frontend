@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import Logo from '@/src/components/Logo/Logo';
 import { useAuthStore } from '@/src/store/authStore';
+import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
+import { colors } from '@/src/constants/colors';
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -13,14 +15,10 @@ export default function SplashScreen() {
     const timer = setTimeout(() => {
       if (!accessToken) {
         router.replace('/(auth)/login');
-      } else if (registrationStatus === 'NOT_STARTED') {
-        router.replace('/(auth)/profile-setup');
-      } else if (registrationStatus === 'PROFILE_COMPLETED') {
-        router.replace('/onboarding/step1');
       } else {
         // registrationStatus가 'ONBOARDING_COMPLETED'이거나(정상 완료), 캐시가 없는
         // 이전 세션(null)인 경우 — 둘 다 홈으로 보내는 게 안전한 기본값이다.
-        router.replace('/(tabs)/home');
+        router.replace(getPostAuthRoute(registrationStatus));
       }
     }, 2000);
     return () => clearTimeout(timer);
@@ -39,7 +37,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
   },
   logoWrapper: {
     position: 'absolute',
