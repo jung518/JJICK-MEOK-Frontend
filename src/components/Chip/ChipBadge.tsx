@@ -5,6 +5,11 @@ import { colors } from '@/src/constants/colors';
 export type TagVariant = 'MOOD' | 'INTENSITY' | 'DURATION' | 'SIZE' | 'PURPOSE';
 export type ChipBadgeVariant = 'category' | 'categoryDark' | 'ad' | TagVariant;
 
+export type Tag = {
+  label: string;
+  variant: TagVariant;
+};
+
 export const TAG_VARIANT_META: Record<TagVariant, { name: string; description: string }> = {
   MOOD: { name: '활동 분위기', description: '활동에서 느껴지는 전체적인 정서와 무드' },
   INTENSITY: { name: '활동 강도', description: '활동에 필요한 부담감, 몰입도, 도전 정도' },

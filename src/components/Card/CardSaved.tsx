@@ -1,20 +1,13 @@
 import { useState } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Typography } from '@/src/components/Typography/Typography';
-import ChipBadge from '@/src/components/Chip/ChipBadge';
+import ChipBadge, { type Tag } from '@/src/components/Chip/ChipBadge';
 import HeartSaved from '@/assets/images/HeartSaved.svg';
 import HeartUnselected from '@/assets/images/HeartUnselected.svg';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
 import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 import { useToggleFavorite } from '@/src/hooks/useToggleFavorite';
-
-type TagVariant = 'MOOD' | 'INTENSITY' | 'DURATION' | 'SIZE' | 'PURPOSE';
-
-type Tag = {
-  label: string;
-  variant: TagVariant;
-};
 
 type Props = {
   activityId: number;
