@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge from '@/src/components/Chip/ChipBadge';
 import HeartSaved from '@/assets/images/HeartSaved.svg';
 import HeartUnselected from '@/assets/images/HeartUnselected.svg';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
-import { addFavorite, deleteFavorite } from '@/src/api/favorites';
 import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
+import { useToggleFavorite } from '@/src/hooks/useToggleFavorite';
 
 type TagVariant = 'MOOD' | 'INTENSITY' | 'DURATION' | 'SIZE' | 'PURPOSE';
 
@@ -36,25 +35,11 @@ export default function CardSaved({
   thumbnailUrl,
   onRemove,
 }: Props) {
-  const [saved, setSaved] = useState(initialSaved);
-  const [isSaving, setIsSaving] = useState(false);
   const [imgWidth, setImgWidth] = useState(0);
   const { hasImage, onError } = useImageWithFallback(thumbnailUrl);
-
-  const handleHeartPress = () => {
-    if (isSaving) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const nextSaved = !saved;
-    setSaved(nextSaved);
-    setIsSaving(true);
-    const request = nextSaved ? addFavorite(activityId) : deleteFavorite(activityId);
-    request
-      .then(() => {
-        if (!nextSaved) onRemove?.(activityId);
-      })
-      .catch(() => setSaved(!nextSaved))
-      .finally(() => setIsSaving(false));
-  };
+  const { saved, toggle: handleHeartPress } = useToggleFavorite(activityId, initialSaved, {
+    onUnsave: () => onRemove?.(activityId),
+  });
 
   return (
     <View style={styles.container}>

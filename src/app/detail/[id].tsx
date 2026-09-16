@@ -10,11 +10,10 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { Loading } from '@/src/components/Loading/Loading';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import EyeOn from '@/assets/images/EyeOn.svg';
 import HeartDisabled from '@/assets/images/HeartDisabled.svg';
 import CloseLarge from '@/assets/images/CloseLarge.svg';
@@ -27,12 +26,12 @@ import ChipBadge from '@/src/components/Chip/ChipBadge';
 import { Typography } from '@/src/components/Typography/Typography';
 import { colors } from '@/src/constants/colors';
 import { getDetailData } from '@/src/api/pages';
-import { addFavorite, deleteFavorite } from '@/src/api/favorites';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
 import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
+import { useToggleFavorite } from '@/src/hooks/useToggleFavorite';
 
 const TABS = [
   { key: 'info', label: '정보' },
@@ -67,13 +66,10 @@ function formatPrice(price: number) {
 
 export default function ActivityDetailPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const activityId = Number(id);
 
   const [activeTab, setActiveTab] = useState('info');
-  const [saved, setSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollYRef = useRef(0);
@@ -111,25 +107,12 @@ export default function ActivityDetailPage() {
     '활동 정보를 불러오지 못했어요. 다시 시도해주세요.',
   );
 
-  useEffect(() => {
-    if (data?.liked !== undefined) {
-      setSaved(data.liked);
-    }
-  }, [data?.liked]);
-
   const { hasImage, onError: onImageError } = useImageWithFallback(data?.thumbnailUrl);
 
+  const { saved, toggle: handleSavePressRaw } = useToggleFavorite(activityId, data?.liked);
   const handleSavePress = () => {
-    if (!data || isSaving) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const nextSaved = !saved;
-    setSaved(nextSaved);
-    setIsSaving(true);
-    const request = nextSaved ? addFavorite(activityId) : deleteFavorite(activityId);
-    request
-      .then(() => queryClient.invalidateQueries({ queryKey: ['favorites-page'] }))
-      .catch(() => setSaved(!nextSaved))
-      .finally(() => setIsSaving(false));
+    if (!data) return;
+    handleSavePressRaw();
   };
 
   const infoRows = data
