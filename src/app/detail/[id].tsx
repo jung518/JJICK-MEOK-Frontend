@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  PanResponder,
   Image,
   Linking,
   Alert,
@@ -32,6 +31,7 @@ import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 import { useToggleFavorite } from '@/src/hooks/useToggleFavorite';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 
 const TABS = [
   { key: 'info', label: '정보' },
@@ -39,7 +39,6 @@ const TABS = [
 ];
 
 const BOTTOM_BAR_HEIGHT = 114;
-const PULL_THRESHOLD = 60;
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -71,35 +70,14 @@ export default function ActivityDetailPage() {
 
   const [activeTab, setActiveTab] = useState('info');
   const [zoomed, setZoomed] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['detail', activityId],
     queryFn: () => getDetailData(activityId),
     enabled: !!activityId,
   });
-  refetchRef.current = refetch;
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(refetch);
 
   const { message: errorMessage, isRetriable } = useApiErrorMessage(
     isError,
@@ -150,9 +128,7 @@ export default function ActivityDetailPage() {
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={(e) => {
-              scrollYRef.current = e.nativeEvent.contentOffset.y;
-            }}
+            onScroll={onScroll}
             scrollEventThrottle={16}
           >
             {isLoading ? (

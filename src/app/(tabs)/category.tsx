@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, PanResponder } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -19,10 +19,9 @@ import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import AppBar from '@/src/components/Bar/AppBar';
 import CategoryBar from '@/src/components/Bar/CategoryBar';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 
 type SheetType = 'type' | 'sort' | null;
-
-const PULL_THRESHOLD = 60;
 
 function toCardProps(activity: HomeActivity) {
   const dday = formatDday(activity.deadline);
@@ -43,28 +42,6 @@ export default function CategoryScreen() {
   const [selectedCategoryValue, setSelectedCategoryValue] = useState('');
   const [selectedSortValue, setSelectedSortValue] = useState('');
   const [activeSheet, setActiveSheet] = useState<SheetType>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['category', selectedTypeValue, selectedCategoryValue, selectedSortValue],
@@ -75,7 +52,8 @@ export default function CategoryScreen() {
         sort: selectedSortValue || undefined,
       }),
   });
-  refetchRef.current = refetch;
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(refetch);
 
   const { data: profile } = useQuery({
     queryKey: ['users', 'me', 'profile'],
@@ -129,9 +107,7 @@ export default function CategoryScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          onScroll={(e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
-          }}
+          onScroll={onScroll}
           scrollEventThrottle={16}
         >
           <View style={[styles.filterRow, styles.fullWidth]}>

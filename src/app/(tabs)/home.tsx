@@ -1,13 +1,5 @@
-import { useState, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  PanResponder,
-  Dimensions,
-} from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -28,6 +20,7 @@ import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { colors } from '@/src/constants/colors';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { CURATION_KEY_BY_TITLE } from '@/src/constants/curationThemes';
 import type { Activity, CurationThemeCard } from '@/src/types/activities';
@@ -84,34 +77,10 @@ const DEFAULT_ICONS: IconConfig[] = [
   { Svg: Club, label: '동아리', route: '/activity-categories/club' },
 ];
 
-const PULL_THRESHOLD = 60;
-
 export default function HomeScreen() {
   const navigateOnce = useNavigateOnce();
   const insets = useSafeAreaInsets();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [rankPageIndex, setRankPageIndex] = useState(0);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const {
     data: homeData,
@@ -123,6 +92,8 @@ export default function HomeScreen() {
     queryKey: ['home'],
     queryFn: () => getHomeData(),
   });
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(refetch);
 
   const { data: tagsData } = useQuery({
     queryKey: ['tags', 'ACTIVITY_CATEGORY'],
@@ -145,8 +116,6 @@ export default function HomeScreen() {
   // 인기 활동은 백엔드가 정렬해서 내려주므로 프론트에서 재정렬하지 않는다.
   const displayCards = (homeData?.popular.activities ?? []).filter((a) => isNotExpired(a.deadline));
   const rankingPageCount = Math.ceil(displayCards.length / RANKING_PAGE_SIZE);
-
-  refetchRef.current = refetch;
 
   const { message: homeErrorMessage, isSessionExpired } = useApiErrorMessage(
     isError,
@@ -171,9 +140,7 @@ export default function HomeScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          onScroll={(e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
-          }}
+          onScroll={onScroll}
           scrollEventThrottle={16}
         >
           <View style={styles.pickSection}>

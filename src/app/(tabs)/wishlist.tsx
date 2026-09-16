@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, PanResponder } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -25,13 +25,12 @@ import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
 import { TwoColumnGrid } from '@/src/components/Layout/TwoColumnGrid';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh';
 
 const SORT_MAP: Record<string, 'saved' | 'deadline'> = {
   담은순: 'saved',
   마감순: 'deadline',
 };
-
-const PULL_THRESHOLD = 60;
 
 export default function ProgramListScreen() {
   const router = useRouter();
@@ -40,29 +39,6 @@ export default function ProgramListScreen() {
   const [selectedSort, setSelectedSort] = useState('담은순');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
-  const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollYRef.current <= 0 && dy > 8 && dy > Math.abs(dx) * 2,
-      onPanResponderRelease: (_, { dy }) => {
-        if (dy * 0.4 >= PULL_THRESHOLD && !isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          setIsRefreshing(true);
-          setRemovedIds(new Set());
-          refetchRef.current().finally(() => {
-            isRefreshingRef.current = false;
-            setIsRefreshing(false);
-          });
-        }
-      },
-      onPanResponderTerminate: () => {},
-    }),
-  ).current;
 
   const {
     data: rawActivities = [],
@@ -76,7 +52,11 @@ export default function ProgramListScreen() {
       return activities;
     },
   });
-  refetchRef.current = refetch;
+
+  const { panResponder, isRefreshing, onScroll } = usePullToRefresh(() => {
+    setRemovedIds(new Set());
+    return refetch();
+  });
 
   const activities = useMemo(() => {
     if (SORT_MAP[selectedSort] === 'deadline') {
@@ -142,9 +122,7 @@ export default function ProgramListScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          onScroll={(e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
-          }}
+          onScroll={onScroll}
           scrollEventThrottle={16}
         >
           {isError ? (
