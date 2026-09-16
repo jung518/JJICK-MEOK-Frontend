@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
@@ -17,6 +9,7 @@ import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge, { type TagVariant } from '@/src/components/Chip/ChipBadge';
 import ButtonInsight from '@/src/components/Button/ButtonInsight';
 import LogoutModal from '@/src/components/Modal/LogoutModal';
+import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
 import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import ArrowRightSvg from '@/assets/images/ArrowRight.svg';
@@ -142,17 +135,9 @@ export default function MyPageScreen() {
         )}
       </ScrollView>
 
-      <Modal
-        visible={showLogoutModal}
-        transparent
-        statusBarTranslucent
-        onRequestClose={() => setShowLogoutModal(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setShowLogoutModal(false)} />
-        <View style={styles.sheetContainer}>
-          <LogoutModal onCancel={() => setShowLogoutModal(false)} onConfirm={handleConfirmLogout} />
-        </View>
-      </Modal>
+      <BottomSheetModal visible={showLogoutModal} onClose={() => setShowLogoutModal(false)}>
+        <LogoutModal onCancel={() => setShowLogoutModal(false)} onConfirm={handleConfirmLogout} />
+      </BottomSheetModal>
     </ScreenLayout>
   );
 }
@@ -245,19 +230,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 10,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  sheetContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
 });

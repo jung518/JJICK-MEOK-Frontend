@@ -1,13 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Modal,
-  TouchableOpacity,
-  PanResponder,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, PanResponder } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -15,6 +7,7 @@ import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import { Dropdown } from '@/src/components/Filter/Dropdown';
 import ActivityCard from '@/src/components/Card/ActivityCard';
 import CategoryFilter from '@/src/components/Modal/CategoryFilter';
+import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
 import { colors } from '@/src/constants/colors';
 import { getCategoryPageData } from '@/src/api/pages';
 import { getMyProfile } from '@/src/api/user';
@@ -176,39 +169,31 @@ export default function CategoryScreen() {
         </ScrollView>
       </View>
 
-      <Modal
-        visible={!!activeSheet}
-        transparent
-        statusBarTranslucent
-        onRequestClose={() => setActiveSheet(null)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setActiveSheet(null)} />
-        <View style={styles.sheetContainer}>
-          <CategoryFilter
-            title={activeSheet === 'type' ? '카테고리 선택' : '정렬'}
-            options={
-              activeSheet === 'type'
-                ? typeOptions.map((o) => o.label)
-                : sortOptions.map((o) => o.label)
+      <BottomSheetModal visible={!!activeSheet} onClose={() => setActiveSheet(null)}>
+        <CategoryFilter
+          title={activeSheet === 'type' ? '카테고리 선택' : '정렬'}
+          options={
+            activeSheet === 'type'
+              ? typeOptions.map((o) => o.label)
+              : sortOptions.map((o) => o.label)
+          }
+          selected={activeSheet === 'type' ? selectedTypeLabel : selectedSortLabel}
+          optionGap={activeSheet === 'sort' ? 35 : 30}
+          height={activeSheet === 'type' ? 428 : 322}
+          onSelect={(label) => {
+            if (activeSheet === 'type') {
+              const opt = typeOptions.find((o) => o.label === label);
+              setSelectedTypeValue(opt?.value ?? '');
+              setSelectedCategoryValue('');
+            } else {
+              const opt = sortOptions.find((o) => o.label === label);
+              setSelectedSortValue(opt?.value ?? '');
             }
-            selected={activeSheet === 'type' ? selectedTypeLabel : selectedSortLabel}
-            optionGap={activeSheet === 'sort' ? 35 : 30}
-            height={activeSheet === 'type' ? 428 : 322}
-            onSelect={(label) => {
-              if (activeSheet === 'type') {
-                const opt = typeOptions.find((o) => o.label === label);
-                setSelectedTypeValue(opt?.value ?? '');
-                setSelectedCategoryValue('');
-              } else {
-                const opt = sortOptions.find((o) => o.label === label);
-                setSelectedSortValue(opt?.value ?? '');
-              }
-              setActiveSheet(null);
-            }}
-            onClose={() => setActiveSheet(null)}
-          />
-        </View>
-      </Modal>
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      </BottomSheetModal>
     </ScreenLayout>
   );
 }
@@ -255,19 +240,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  sheetContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
 });

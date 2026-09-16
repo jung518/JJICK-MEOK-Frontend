@@ -1,13 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Modal,
-  TouchableOpacity,
-  PanResponder,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, PanResponder } from 'react-native';
 import { Loading } from '@/src/components/Loading/Loading';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -30,6 +22,7 @@ import {
   isNotExpired,
 } from '@/src/utils/activity';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const SORT_MAP: Record<string, 'saved' | 'deadline'> = {
@@ -213,28 +206,20 @@ export default function ProgramListScreen() {
         </ScrollView>
       </View>
 
-      <Modal
-        visible={showSortSheet}
-        transparent
-        statusBarTranslucent
-        onRequestClose={() => setShowSortSheet(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setShowSortSheet(false)} />
-        <View style={styles.sheetContainer}>
-          <CategoryFilter
-            title="정렬"
-            options={['담은순', '마감순']}
-            selected={selectedSort}
-            optionGap={35}
-            height={322}
-            onSelect={(item) => {
-              setSelectedSort(item);
-              setShowSortSheet(false);
-            }}
-            onClose={() => setShowSortSheet(false)}
-          />
-        </View>
-      </Modal>
+      <BottomSheetModal visible={showSortSheet} onClose={() => setShowSortSheet(false)}>
+        <CategoryFilter
+          title="정렬"
+          options={['담은순', '마감순']}
+          selected={selectedSort}
+          optionGap={35}
+          height={322}
+          onSelect={(item) => {
+            setSelectedSort(item);
+            setShowSortSheet(false);
+          }}
+          onClose={() => setShowSortSheet(false)}
+        />
+      </BottomSheetModal>
     </ScreenLayout>
   );
 }
@@ -253,20 +238,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 140,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  sheetContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
   grid: {
     gap: 29,
