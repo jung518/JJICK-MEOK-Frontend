@@ -29,6 +29,7 @@ import {
   getActivityTypeLabel,
   isNotExpired,
 } from '@/src/utils/activity';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const SORT_MAP: Record<string, 'saved' | 'deadline'> = {
@@ -154,18 +155,13 @@ export default function ProgramListScreen() {
         >
           {isError ? (
             <View style={styles.emptyState}>
-              <Typography size="lg" weight="medium" color="tertiary" style={styles.emptyText}>
-                {'찜한 활동을 불러오지 못했어요.\n다시 시도해주세요.'}
-              </Typography>
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => refetch()}
-                activeOpacity={0.7}
-              >
-                <Typography size="sm" weight="medium" color="secondary">
-                  다시 시도
-                </Typography>
-              </TouchableOpacity>
+              <ErrorBox
+                message={'찜한 활동을 불러오지 못했어요.\n다시 시도해주세요.'}
+                onRetry={() => refetch()}
+                size="lg"
+                color="tertiary"
+                style={styles.emptyText}
+              />
             </View>
           ) : isLoading && !isRefreshing ? (
             <View style={styles.emptyState}>
@@ -289,18 +285,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 40,
+    gap: 16,
   },
   emptyText: {
     textAlign: 'center',
     lineHeight: 22,
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   scrollView: {
     flex: 1,

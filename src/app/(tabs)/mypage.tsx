@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { Loading } from '@/src/components/Loading/Loading';
@@ -18,6 +17,8 @@ import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge, { type TagVariant } from '@/src/components/Chip/ChipBadge';
 import ButtonInsight from '@/src/components/Button/ButtonInsight';
 import LogoutModal from '@/src/components/Modal/LogoutModal';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import ArrowRightSvg from '@/assets/images/ArrowRight.svg';
 import EditSvg from '@/assets/images/Edit.svg';
 import ProfileSvg from '@/assets/images/Profile.svg';
@@ -55,16 +56,11 @@ export default function MyPageScreen() {
     queryFn: getMyProfile,
   });
 
-  const errorMessage = (() => {
-    if (!isError) return null;
-    const err = error as AxiosError;
-    if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-    if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-      return '네트워크 연결을 확인해주세요.';
-    return '내 정보를 불러오지 못했어요. 다시 시도해주세요.';
-  })();
-
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const { message: errorMessage, isRetriable } = useApiErrorMessage(
+    isError,
+    error,
+    '내 정보를 불러오지 못했어요. 다시 시도해주세요.',
+  );
 
   const nickname = profile?.nickname ?? '';
   const tags = sortByVariantPriority(
@@ -97,20 +93,7 @@ export default function MyPageScreen() {
           </View>
         ) : errorMessage ? (
           <View style={styles.messageBox}>
-            <Typography size="sm" weight="medium" color="secondary" style={styles.errorText}>
-              {errorMessage}
-            </Typography>
-            {isRetriable && (
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => refetch()}
-                activeOpacity={0.7}
-              >
-                <Typography size="sm" weight="medium" color="secondary">
-                  다시 시도
-                </Typography>
-              </TouchableOpacity>
-            )}
+            <ErrorBox message={errorMessage} onRetry={isRetriable ? () => refetch() : undefined} />
           </View>
         ) : (
           <>
@@ -200,16 +183,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  errorText: {
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   profileCard: {
     flexDirection: 'row',

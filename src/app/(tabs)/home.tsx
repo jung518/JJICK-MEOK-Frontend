@@ -11,7 +11,6 @@ import {
 import { Loading } from '@/src/components/Loading/Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import TopNav from '@/src/components/Nav/TopNav';
 import Program from '@/assets/images/Program.svg';
@@ -25,6 +24,9 @@ import Indicator from '@/src/components/Indicator/Indicator';
 import { getTags } from '@/src/api/user';
 import { getHomeData } from '@/src/api/pages';
 import { getActivityTypeLabel, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import { colors } from '@/src/constants/colors';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { CURATION_KEY_BY_TITLE } from '@/src/constants/curationThemes';
@@ -83,38 +85,6 @@ const DEFAULT_ICONS: IconConfig[] = [
 ];
 
 const PULL_THRESHOLD = 60;
-
-function getErrorMessage(error: unknown, fallbackMessage: string) {
-  const isSessionExpired = axios.isAxiosError(error) && error.response?.status === 401;
-  const isNetworkError = axios.isAxiosError(error) && !error.response;
-  const message = isSessionExpired
-    ? '로그인 시간이 만료되었어요. 다시 로그인해주세요.'
-    : isNetworkError
-      ? '네트워크 연결을 확인해주세요.'
-      : fallbackMessage;
-  return { message, isSessionExpired };
-}
-
-function ErrorBox({
-  style,
-  message,
-  onRetry,
-}: {
-  style: object;
-  message: string;
-  onRetry?: () => void;
-}) {
-  return (
-    <View style={style}>
-      <Text style={styles.errorText}>{message}</Text>
-      {onRetry && (
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry} activeOpacity={0.7}>
-          <Text style={styles.retryText}>다시 시도</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
 
 export default function HomeScreen() {
   const navigateOnce = useNavigateOnce();
@@ -178,7 +148,8 @@ export default function HomeScreen() {
 
   refetchRef.current = refetch;
 
-  const { message: homeErrorMessage, isSessionExpired } = getErrorMessage(
+  const { message: homeErrorMessage, isSessionExpired } = useApiErrorMessage(
+    isError,
     error,
     '홈 화면을 불러오지 못했어요. 다시 시도해주세요.',
   );
@@ -254,11 +225,17 @@ export default function HomeScreen() {
                   <Text style={styles.popularTitle}>인기 활동</Text>
                 </View>
                 {isError ? (
-                  <ErrorBox
-                    style={styles.errorBox}
-                    message={homeErrorMessage}
-                    onRetry={!isSessionExpired ? refetch : undefined}
-                  />
+                  <View style={styles.errorBox}>
+                    <ErrorBox
+                      message={homeErrorMessage!}
+                      onRetry={!isSessionExpired ? refetch : undefined}
+                      size="md"
+                      color="primary"
+                      retrySize="md"
+                      retryColor="primary"
+                      retryBorderColor={colors.border.active}
+                    />
+                  </View>
                 ) : (
                   <>
                     <ScrollView
@@ -315,11 +292,17 @@ export default function HomeScreen() {
                 </Text>
               </View>
               {isError ? (
-                <ErrorBox
-                  style={styles.recommendErrorBox}
-                  message={homeErrorMessage}
-                  onRetry={!isSessionExpired ? refetch : undefined}
-                />
+                <View style={styles.recommendErrorBox}>
+                  <ErrorBox
+                    message={homeErrorMessage!}
+                    onRetry={!isSessionExpired ? refetch : undefined}
+                    size="md"
+                    color="primary"
+                    retrySize="md"
+                    retryColor="primary"
+                    retryBorderColor={colors.border.active}
+                  />
+                </View>
               ) : isLoading && !isRefreshing ? (
                 <View style={styles.recommendErrorBox}>
                   <Loading />
@@ -503,18 +486,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#222',
-  },
-  retryText: {
-    color: '#222',
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
   },
   rankingPageScroll: {
     height: RANKING_PAGE_HEIGHT,

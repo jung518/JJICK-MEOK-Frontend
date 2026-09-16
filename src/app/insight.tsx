@@ -7,6 +7,7 @@ import { Loading } from '@/src/components/Loading/Loading';
 import { Typography } from '@/src/components/Typography/Typography';
 import ArrowLeftSvg from '@/assets/images/ArrowLeft.svg';
 import { getMyProfile, getTags, type TagItem } from '@/src/api/user';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { colors } from '@/src/constants/colors';
 
 const GROUP_LABELS: Record<string, string> = {
@@ -82,21 +83,13 @@ export default function InsightScreen() {
         </View>
       ) : isError ? (
         <View style={styles.messageBox}>
-          <Typography size="sm" weight="medium" color="secondary" style={styles.errorText}>
-            데이터를 불러오지 못했어요. 다시 시도해주세요.
-          </Typography>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => {
+          <ErrorBox
+            message="데이터를 불러오지 못했어요. 다시 시도해주세요."
+            onRetry={() => {
               refetchTags();
               refetchProfile();
             }}
-            activeOpacity={0.7}
-          >
-            <Typography size="sm" weight="medium" color="secondary">
-              다시 시도
-            </Typography>
-          </TouchableOpacity>
+          />
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -146,16 +139,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  errorText: {
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   content: {
     paddingHorizontal: 18,

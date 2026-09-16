@@ -11,18 +11,18 @@ import {
 import { Loading } from '@/src/components/Loading/Loading';
 import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import { Dropdown } from '@/src/components/Filter/Dropdown';
 import ActivityCard from '@/src/components/Card/ActivityCard';
 import CategoryFilter from '@/src/components/Modal/CategoryFilter';
-import { Typography } from '@/src/components/Typography/Typography';
 import { colors } from '@/src/constants/colors';
 import { getCategoryPageData } from '@/src/api/pages';
 import { getMyProfile } from '@/src/api/user';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
 import { formatDday, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import AppBar from '@/src/components/Bar/AppBar';
 import CategoryBar from '@/src/components/Bar/CategoryBar';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
@@ -103,19 +103,10 @@ export default function CategoryScreen() {
 
   const tabOptions = categoryOptions.length > 0 ? categoryOptions.map((o) => o.label) : ['전체'];
 
-  const errorMessage = (() => {
-    if (isError) {
-      const err = error as AxiosError;
-      if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-      if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-        return '네트워크 연결을 확인해주세요.';
-      return '활동 목록을 불러오지 못했어요. 다시 시도해주세요.';
-    }
-    if (data && activities.length === 0) return '조건에 맞는 활동이 없어요.';
-    return null;
-  })();
-
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const apiError = useApiErrorMessage(isError, error, '활동 목록을 불러오지 못했어요. 다시 시도해주세요.');
+  const errorMessage =
+    apiError.message ?? (data && activities.length === 0 ? '조건에 맞는 활동이 없어요.' : null);
+  const isRetriable = apiError.isRetriable;
 
   useFocusEffect(
     useCallback(() => {
@@ -160,25 +151,7 @@ export default function CategoryScreen() {
             </View>
           ) : errorMessage ? (
             <View style={styles.messageBox}>
-              <Typography
-                size="sm"
-                weight="medium"
-                color="secondary"
-                style={{ textAlign: 'center' }}
-              >
-                {errorMessage}
-              </Typography>
-              {isRetriable && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => refetch()}
-                  activeOpacity={0.7}
-                >
-                  <Typography size="sm" weight="medium" color="secondary">
-                    다시 시도
-                  </Typography>
-                </TouchableOpacity>
-              )}
+              <ErrorBox message={errorMessage} onRetry={isRetriable ? () => refetch() : undefined} />
             </View>
           ) : (
             <View style={styles.cards}>
@@ -282,13 +255,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   backdrop: {
     position: 'absolute',

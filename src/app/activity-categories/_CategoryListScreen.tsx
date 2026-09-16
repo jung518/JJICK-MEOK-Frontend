@@ -12,18 +12,18 @@ import { Loading } from '@/src/components/Loading/Loading';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { Dropdown } from '@/src/components/Filter/Dropdown';
 import ActivityCard from '@/src/components/Card/ActivityCard';
 import CategoryFilter from '@/src/components/Modal/CategoryFilter';
-import { Typography } from '@/src/components/Typography/Typography';
 import { colors } from '@/src/constants/colors';
 import { getCategoryPageData } from '@/src/api/pages';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
 import { formatDday, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const PULL_THRESHOLD = 60;
@@ -83,22 +83,15 @@ export default function CategoryListScreen({ type, title }: Props) {
   const selectedSortLabel =
     sortOptions.find((o) => o.value === selectedSortValue)?.label ?? '추천순';
 
-  const errorMessage = (() => {
-    if (isError) {
-      const err = error as AxiosError;
-      if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-      if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-        return '네트워크 연결을 확인해주세요.';
-      return '활동 목록을 불러오지 못했어요. 다시 시도해주세요.';
-    }
-    if (data && activities.length === 0) {
-      if (categoryOptions.length === 0) return '선택한 카테고리를 불러오지 못했어요.';
-      return '조건에 맞는 활동이 없어요.';
-    }
-    return null;
-  })();
-
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const apiError = useApiErrorMessage(isError, error, '활동 목록을 불러오지 못했어요. 다시 시도해주세요.');
+  const errorMessage =
+    apiError.message ??
+    (data && activities.length === 0
+      ? categoryOptions.length === 0
+        ? '선택한 카테고리를 불러오지 못했어요.'
+        : '조건에 맞는 활동이 없어요.'
+      : null);
+  const isRetriable = apiError.isRetriable;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -173,25 +166,7 @@ export default function CategoryListScreen({ type, title }: Props) {
             </View>
           ) : errorMessage ? (
             <View style={styles.messageBox}>
-              <Typography
-                size="sm"
-                weight="medium"
-                color="secondary"
-                style={{ textAlign: 'center' }}
-              >
-                {errorMessage}
-              </Typography>
-              {isRetriable && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => refetch()}
-                  activeOpacity={0.7}
-                >
-                  <Typography size="sm" weight="medium" color="secondary">
-                    다시 시도
-                  </Typography>
-                </TouchableOpacity>
-              )}
+              <ErrorBox message={errorMessage} onRetry={isRetriable ? () => refetch() : undefined} />
             </View>
           ) : (
             activities.map((activity, i) => (
@@ -293,12 +268,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
 });

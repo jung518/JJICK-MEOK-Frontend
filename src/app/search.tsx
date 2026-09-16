@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -15,6 +15,8 @@ import { searchActivities } from '@/src/api/activities';
 import type { ActivitySummary } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
 import { formatDday, getDaysLeftFromDate, isNotExpired } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -57,16 +59,11 @@ export default function SearchScreen() {
       (error as AxiosError)?.response?.status !== 401 && failureCount < 1,
   });
 
-  const errorMessage = (() => {
-    if (!isError) return null;
-    const err = error as AxiosError;
-    if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-    if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-      return '네트워크 연결을 확인해주세요.';
-    return '검색 결과를 불러오지 못했어요. 다시 시도해주세요.';
-  })();
-
-  const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
+  const { message: errorMessage, isRetriable } = useApiErrorMessage(
+    isError,
+    error,
+    '검색 결과를 불러오지 못했어요. 다시 시도해주세요.',
+  );
 
   const visibleResults = (results ?? []).filter((item) =>
     isNotExpired(getDaysLeftFromDate(item.recruitEndAt)),
@@ -90,16 +87,12 @@ export default function SearchScreen() {
 
         {errorMessage ? (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-            {isRetriable && (
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => refetch()}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.retryText}>다시 시도</Text>
-              </TouchableOpacity>
-            )}
+            <ErrorBox
+              message={errorMessage}
+              onRetry={isRetriable ? () => refetch() : undefined}
+              size="md"
+              retrySize="md"
+            />
           </View>
         ) : isLoading ? (
           <View style={styles.emptyState}>
@@ -187,23 +180,5 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     alignItems: 'center' as const,
     gap: 16,
-  },
-  errorText: {
-    color: colors.text.secondary,
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
-    textAlign: 'center' as const,
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  retryText: {
-    color: colors.text.secondary,
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
   },
 });

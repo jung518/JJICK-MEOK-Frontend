@@ -2,8 +2,6 @@ import { Text, View, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
-import { Typography } from '@/src/components/Typography/Typography';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
 import { Loading } from '@/src/components/Loading/Loading';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
@@ -16,6 +14,8 @@ import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import { getCurationDetailPageData } from '@/src/api/pages';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
+import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
+import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 
 const TAB_TO_ROUTE: Record<TabKey, string> = {
   home: '/home',
@@ -52,17 +52,9 @@ export default function CurationDetailScreen() {
 
   const hasError = isError || !curationKey;
 
-  const errorMessage = (() => {
-    if (!curationKey) return '큐레이션 정보를 찾을 수 없어요.';
-    if (!isError) return null;
-    const err = error as AxiosError;
-    if (err.response?.status === 401) return '로그인 시간이 만료되었어요. 다시 로그인해주세요.';
-    if (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')
-      return '네트워크 연결을 확인해주세요.';
-    return '큐레이션 정보를 불러오지 못했어요. 다시 시도해주세요.';
-  })();
-
-  const isRetriable = hasError && !!curationKey && (error as AxiosError)?.response?.status !== 401;
+  const apiError = useApiErrorMessage(isError, error, '큐레이션 정보를 불러오지 못했어요. 다시 시도해주세요.');
+  const errorMessage = !curationKey ? '큐레이션 정보를 찾을 수 없어요.' : apiError.message;
+  const isRetriable = hasError && !!curationKey && apiError.isRetriable;
 
   const retry = () => {
     refetch();
@@ -85,16 +77,7 @@ export default function CurationDetailScreen() {
       <ArrowLeftBar onPress={() => router.back()} />
       {hasError ? (
         <View style={styles.errorBox}>
-          <Typography size="sm" weight="medium" color="secondary" style={styles.errorText}>
-            {errorMessage}
-          </Typography>
-          {isRetriable && (
-            <TouchableOpacity style={styles.retryButton} onPress={retry} activeOpacity={0.7}>
-              <Typography size="sm" weight="medium" color="secondary">
-                다시 시도
-              </Typography>
-            </TouchableOpacity>
-          )}
+          <ErrorBox message={errorMessage!} onRetry={isRetriable ? retry : undefined} />
         </View>
       ) : (
         <ScrollView
@@ -219,16 +202,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 16,
-  },
-  errorText: {
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   grid: {
     gap: 22,
