@@ -21,7 +21,6 @@
 | :----------------------------------------------: | :--------------------------------------------------: | :--------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: |
 | <img src="docs/screenshots/home.jpg" width="180"/> | <img src="docs/screenshots/category.jpg" width="180"/> | <img src="docs/screenshots/detail.jpg" width="180"/> | <img src="docs/screenshots/wishlist.jpg" width="180"/> | <img src="docs/screenshots/search.jpg" width="180"/> |
 
-> `docs/screenshots/` 폴더에 위 파일명으로 이미지를 넣으면 표에 바로 반영됩니다. (온보딩 스크린샷을 추가하고 싶으면 `onboarding.jpg`로 넣고 알려주세요.)
 
 ## Tech Stack
 
