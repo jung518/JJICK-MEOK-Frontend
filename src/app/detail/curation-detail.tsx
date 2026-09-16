@@ -16,6 +16,7 @@ import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
 import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import { TwoColumnGrid } from '@/src/components/Layout/TwoColumnGrid';
 
 const TAB_TO_ROUTE: Record<TabKey, string> = {
   home: '/home',
@@ -109,35 +110,26 @@ export default function CurationDetailScreen() {
                 <Loading />
               </View>
             ) : (
-              <View style={styles.grid}>
-                {Array.from({ length: Math.ceil(curationActivities.length / 2) }, (_, rowIndex) => {
-                  const rowItems = curationActivities.slice(rowIndex * 2, rowIndex * 2 + 2);
-                  const isLastRow = rowIndex === Math.ceil(curationActivities.length / 2) - 1;
-                  const isOddTotal = curationActivities.length % 2 !== 0;
-                  return (
-                    <View key={rowItems[0]?.id ?? rowIndex} style={styles.row}>
-                      {rowItems.map((activity) => (
-                        <TouchableOpacity
-                          key={activity.id}
-                          style={styles.gridItem}
-                          activeOpacity={0.9}
-                          onPress={() => navigateOnce(`/detail/${activity.id}`)}
-                        >
-                          <CurationDetailCard
-                            activityId={activity.id}
-                            category={activity.category}
-                            dday={activity.dday}
-                            title={activity.title}
-                            thumbnailUrl={activity.thumbnailUrl}
-                            initialSaved={activity.initialSaved}
-                          />
-                        </TouchableOpacity>
-                      ))}
-                      {isLastRow && isOddTotal && <View style={styles.gridItem} />}
-                    </View>
-                  );
-                })}
-              </View>
+              <TwoColumnGrid
+                items={curationActivities}
+                keyExtractor={(activity) => activity.id}
+                style={styles.grid}
+                renderItem={(activity) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => navigateOnce(`/detail/${activity.id}`)}
+                  >
+                    <CurationDetailCard
+                      activityId={activity.id}
+                      category={activity.category}
+                      dday={activity.dday}
+                      title={activity.title}
+                      thumbnailUrl={activity.thumbnailUrl}
+                      initialSaved={activity.initialSaved}
+                    />
+                  </TouchableOpacity>
+                )}
+              />
             )}
             {isFetchingNextPage && (
               <View style={styles.nextPageLoadingBox}>
@@ -207,13 +199,6 @@ const styles = StyleSheet.create({
     gap: 22,
     paddingTop: 27,
     paddingHorizontal: 26,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 19,
-  },
-  gridItem: {
-    flex: 1,
   },
   navWrapper: {
     position: 'absolute',

@@ -23,6 +23,7 @@ import {
 } from '@/src/utils/activity';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
 import BottomSheetModal from '@/src/components/Modal/BottomSheetModal';
+import { TwoColumnGrid } from '@/src/components/Layout/TwoColumnGrid';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const SORT_MAP: Record<string, 'saved' | 'deadline'> = {
@@ -171,35 +172,25 @@ export default function ProgramListScreen() {
               <View style={styles.filterRow}>
                 <Dropdown label={selectedSort} onPress={() => setShowSortSheet(true)} />
               </View>
-              <View style={styles.grid}>
-                {Array.from({ length: Math.ceil(filteredActivities.length / 2) }, (_, rowIndex) => {
-                  const rowItems = filteredActivities.slice(rowIndex * 2, rowIndex * 2 + 2);
-                  const isLastRow = rowIndex === Math.ceil(filteredActivities.length / 2) - 1;
-                  const isOddTotal = filteredActivities.length % 2 !== 0;
-                  return (
-                    <View key={rowItems[0]?.id ?? rowIndex} style={styles.row}>
-                      {rowItems.map((activity) => (
-                        <TouchableOpacity
-                          key={activity.id}
-                          style={styles.gridItem}
-                          activeOpacity={0.9}
-                          onPress={() => navigateOnce(`/detail/${activity.id}`)}
-                        >
-                          <CardSaved
-                            activityId={activity.id}
-                            dday={formatDday(activity.deadline)}
-                            title={activity.title}
-                            tags={assignUniqueVariants(pickDiverseTags(activity.hashtags))}
-                            thumbnailUrl={activity.thumbnailUrl}
-                            onRemove={handleRemove}
-                          />
-                        </TouchableOpacity>
-                      ))}
-                      {isLastRow && isOddTotal && <View style={styles.gridItem} />}
-                    </View>
-                  );
-                })}
-              </View>
+              <TwoColumnGrid
+                items={filteredActivities}
+                keyExtractor={(activity) => activity.id}
+                renderItem={(activity) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => navigateOnce(`/detail/${activity.id}`)}
+                  >
+                    <CardSaved
+                      activityId={activity.id}
+                      dday={formatDday(activity.deadline)}
+                      title={activity.title}
+                      tags={assignUniqueVariants(pickDiverseTags(activity.hashtags))}
+                      thumbnailUrl={activity.thumbnailUrl}
+                      onRemove={handleRemove}
+                    />
+                  </TouchableOpacity>
+                )}
+              />
             </>
           )}
           <View style={styles.bottomSpacer} />
@@ -238,18 +229,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 140,
-  },
-  grid: {
-    gap: 29,
-    paddingTop: 15,
-    paddingHorizontal: 26,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 19,
-  },
-  gridItem: {
-    flex: 1,
   },
   emptyState: {
     flex: 1,
