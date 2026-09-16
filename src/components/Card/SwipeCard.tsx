@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   semiBold: {
     fontFamily: 'Pretendard-SemiBold',
-    color: '#FFFFFF',
+    color: colors.neutral.white,
   },
   dday: {
     color: colors.text.secondary,

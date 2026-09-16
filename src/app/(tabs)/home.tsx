@@ -158,7 +158,7 @@ export default function HomeScreen() {
   const curationActivities = featured.map(toCurationActivity);
 
   return (
-    <ScreenLayout style={{ backgroundColor: '#FFF' }}>
+    <ScreenLayout style={{ backgroundColor: colors.neutral.white }}>
       <View style={[styles.topNavWrapper, { paddingTop: insets.top }]}>
         <TopNav onSearchPress={() => navigateOnce('/search')} />
       </View>
@@ -345,18 +345,18 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   topNavWrapper: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   bottomSpacer: {
     height: 25,
     alignSelf: 'stretch',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   loadingArea: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   scrollContent: {
     paddingBottom: 140,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   pickTitle: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 18,
     fontWeight: '600',
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     width: CURATION_ITEM_WIDTH,
   },
   iconSection: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
     height: 100,
     alignItems: 'center',
     justifyContent: 'center',
@@ -407,13 +407,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   iconLabel: {
-    color: '#222',
+    color: colors.text.primary,
     textAlign: 'center',
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
   },
   contentSheet: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
     flexGrow: 1,
   },
   recommendSection: {
@@ -426,14 +426,14 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   recommendTitle: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: -0.36,
   },
   recommendSubtitle: {
-    color: '#666',
+    color: colors.text.secondary,
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     fontWeight: '500',
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   popularTitle: {
-    color: '#222',
+    color: colors.text.primary,
     textAlign: 'center',
     fontFamily: 'Pretendard-SemiBold',
     fontWeight: '600',
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorText: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     textAlign: 'center',
@@ -508,6 +508,6 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
 });

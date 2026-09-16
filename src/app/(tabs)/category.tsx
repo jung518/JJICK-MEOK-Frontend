@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 25,
     alignSelf: 'stretch',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   filterRow: {
     flexDirection: 'row',
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
   loadingArea: {
     alignItems: 'center',

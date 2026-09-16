@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ChipBadge from '@/src/components/Chip/ChipBadge';
 import DefaultActivitySvg from '@/assets/images/DefaultActivity.svg';
 import { CURATION_IMAGE_BY_KEY } from '@/src/constants/curationThemes';
+import { colors } from '@/src/constants/colors';
 import type { Activity, Tag } from '@/src/types/activities';
 
 export type { Activity, Tag };
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     fontWeight: '600',
     fontSize: 22,
-    color: '#FFFFFF',
+    color: colors.neutral.white,
   },
   tags: {
     flexDirection: 'row',

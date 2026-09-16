@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import Close from '@/src/components/Icon/Close';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
+import { colors } from '@/src/constants/colors';
 
 export default function TermsPrivacyScreen() {
   const router = useRouter();
@@ -282,7 +283,7 @@ export default function TermsPrivacyScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
   },
   header: {
     flexDirection: 'column',
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     gap: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
     marginTop: 44,
   },
   introSection: {

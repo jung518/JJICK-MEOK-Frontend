@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import ButtonSaved from '@/src/components/Button/ButtonSaved';
 import { BottomCTA, type BottomCTAVariant } from '@/src/components/Button/BottomCTA';
+import { colors } from '@/src/constants/colors';
 
 type Props = {
   saved?: boolean;
@@ -41,7 +42,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   row: {
     flexDirection: 'row',

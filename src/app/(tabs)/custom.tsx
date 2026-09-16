@@ -108,7 +108,7 @@ export default function CustomScreen() {
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
   },
   bar: {
     height: 60,

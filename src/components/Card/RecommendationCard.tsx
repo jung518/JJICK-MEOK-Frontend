@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 16,
-    color: '#222',
+    color: colors.text.primary,
     letterSpacing: 0.32,
     lineHeight: 20,
     alignSelf: 'stretch',

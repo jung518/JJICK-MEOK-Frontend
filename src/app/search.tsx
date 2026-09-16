@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#EAEAEA',
+    backgroundColor: colors.border.light,
   },
   emptyState: {
     paddingTop: 23,

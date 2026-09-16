@@ -160,13 +160,13 @@ const styles = StyleSheet.create({
     marginTop: 17,
   },
   title: {
-    color: '#222',
+    color: colors.text.primary,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 24,
     letterSpacing: -0.48,
   },
   subtitle: {
-    color: '#666',
+    color: colors.text.secondary,
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
     letterSpacing: -0.28,

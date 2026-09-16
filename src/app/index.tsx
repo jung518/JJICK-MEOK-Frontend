@@ -4,6 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import Logo from '@/src/components/Logo/Logo';
 import { useAuthStore } from '@/src/store/authStore';
 import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
+import { colors } from '@/src/constants/colors';
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
   },
   logoWrapper: {
     position: 'absolute',

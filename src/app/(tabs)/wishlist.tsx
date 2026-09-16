@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 25,
     alignSelf: 'stretch',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.neutral.white,
   },
   filterRow: {
     flexDirection: 'row',
