@@ -34,40 +34,58 @@ type Props = {
   onHeartPressIn?: () => void;
 };
 
-function GradientBorderAnimation({ w, h }: { w: number; h: number }) {
+function useNativeBorderAngle(enabled: boolean) {
   const angle = useSharedValue(0);
-  const borderOpacity = useSharedValue(0);
-  const [webDeg, setWebDeg] = useState(0);
 
   useEffect(() => {
-    borderOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
-    if (Platform.OS === 'web') {
-      let rafId: number;
-      let start: number | null = null;
-      const tick = (ts: number) => {
-        if (start === null) start = ts;
-        setWebDeg((((ts - start) % BORDER_DURATION) / BORDER_DURATION) * 360);
-        rafId = requestAnimationFrame(tick);
-      };
-      rafId = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(rafId);
-    }
+    if (!enabled) return;
     angle.value = withRepeat(
       withTiming(1, { duration: BORDER_DURATION, easing: Easing.linear }),
       -1,
       false,
     );
-  }, [angle, borderOpacity]);
+  }, [enabled, angle]);
 
-  const spinnerSize = Math.ceil(Math.sqrt(w * w + h * h)) + 10;
+  return angle;
+}
+
+function useWebBorderAngleDeg(enabled: boolean) {
+  const [webDeg, setWebDeg] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let rafId: number;
+    let start: number | null = null;
+    const tick = (ts: number) => {
+      if (start === null) start = ts;
+      setWebDeg((((ts - start) % BORDER_DURATION) / BORDER_DURATION) * 360);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [enabled]);
+
+  return webDeg;
+}
+
+function GradientBorderAnimation({ width, height }: { width: number; height: number }) {
+  const isWeb = Platform.OS === 'web';
+  const borderOpacity = useSharedValue(0);
+  const nativeAngle = useNativeBorderAngle(!isWeb);
+  const webAngleDeg = useWebBorderAngleDeg(isWeb);
+
+  useEffect(() => {
+    borderOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
+  }, [borderOpacity]);
+
+  const spinnerSize = Math.ceil(Math.sqrt(width * width + height * height)) + 10;
 
   const nativeStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${angle.value * 360}deg` }],
+    transform: [{ rotate: `${nativeAngle.value * 360}deg` }],
     opacity: borderOpacity.value,
   }));
 
-  const spinnerStyle =
-    Platform.OS === 'web' ? { transform: [{ rotate: `${webDeg}deg` }] } : nativeStyle;
+  const spinnerStyle = isWeb ? { transform: [{ rotate: `${webAngleDeg}deg` }] } : nativeStyle;
 
   return (
     <Animated.View
@@ -76,8 +94,8 @@ function GradientBorderAnimation({ w, h }: { w: number; h: number }) {
           position: 'absolute',
           width: spinnerSize,
           height: spinnerSize,
-          top: (h - spinnerSize) / 2,
-          left: (w - spinnerSize) / 2,
+          top: (height - spinnerSize) / 2,
+          left: (width - spinnerSize) / 2,
         },
         spinnerStyle,
       ]}
@@ -113,7 +131,7 @@ export default function SwipeCard({
         backgroundColor: bg,
       }}
     >
-      {isFront && <GradientBorderAnimation w={CARD_WIDTH} h={CARD_HEIGHT} />}
+      {isFront && <GradientBorderAnimation width={CARD_WIDTH} height={CARD_HEIGHT} />}
       <View
         style={{
           position: 'absolute',
