@@ -82,9 +82,20 @@ export default function ProfileSetupScreen() {
   const getAge = (birth: Date): number => {
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
     return age;
+  };
+
+  const getBirthdayError = (
+    length: number,
+    parsed: Date | null,
+    ageValid: boolean,
+  ): string | undefined => {
+    if (length !== 8) return undefined;
+    if (parsed === null) return '존재하지 않은 날짜입니다.';
+    if (!ageValid) return '찍먹은 만 14세 이상부터 만 59세 이하까지 가입할 수 있습니다.';
+    return undefined;
   };
 
   const isNicknameValid = nickname.length >= 2 && nickname.length <= 20;
@@ -96,12 +107,7 @@ export default function ProfileSetupScreen() {
   const isAgeValid = age !== null && age >= 14 && age <= 59;
   const isBirthdayValid = parsedBirth !== null && isAgeValid;
 
-  const birthdayError =
-    birthDate.length === 8 && parsedBirth === null
-      ? '존재하지 않은 날짜입니다.'
-      : birthDate.length === 8 && parsedBirth !== null && !isAgeValid
-        ? '찍먹은 만 14세 이상부터 만 59세 이하까지 가입할 수 있습니다.'
-        : undefined;
+  const birthdayError = getBirthdayError(birthDate.length, parsedBirth, isAgeValid);
 
   const isFormValid =
     isNicknameValid && isBirthdayValid && gender !== null && status !== '' && serviceAgree;
@@ -119,9 +125,9 @@ export default function ProfileSetupScreen() {
         marketingAgreed: marketingAgree,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (profile) => {
       setFormError('');
-      setRegistrationStatus(data.registrationStatus);
+      setRegistrationStatus(profile.registrationStatus);
       saveNickname(nickname);
       router.replace('/(auth)/signup-complete');
     },

@@ -31,6 +31,19 @@ const PULL_MAX = 80;
 
 type SheetType = 'category' | 'sort' | null;
 
+function getListMessage(
+  apiErrorMessage: string | null | undefined,
+  hasData: boolean,
+  activityCount: number,
+  categoryOptionCount: number,
+): string | undefined {
+  if (apiErrorMessage) return apiErrorMessage;
+  if (!hasData || activityCount > 0) return undefined;
+  return categoryOptionCount === 0
+    ? '선택한 카테고리를 불러오지 못했어요.'
+    : '조건에 맞는 활동이 없어요.';
+}
+
 function toCardProps(activity: HomeActivity) {
   const dday = formatDday(activity.deadline);
   const tags = assignUniqueVariants(pickDiverseTags(activity.hashtags ?? []));
@@ -76,22 +89,31 @@ export default function CategoryListScreen({ type, title }: Props) {
 
   const categoryOptions = data?.categoryOptions ?? [];
   const sortOptions = data?.sortOptions ?? [];
-  const activities = (data?.activities ?? []).filter((a) => isNotExpired(a.deadline));
+  const activities = (data?.activities ?? []).filter((activity) => isNotExpired(activity.deadline));
 
   const selectedCategoryLabel =
-    categoryOptions.find((o) => o.value === selectedCategoryValue)?.label ?? '전체';
+    categoryOptions.find((option) => option.value === selectedCategoryValue)?.label ?? '전체';
   const selectedSortLabel =
-    sortOptions.find((o) => o.value === selectedSortValue)?.label ?? '추천순';
+    sortOptions.find((option) => option.value === selectedSortValue)?.label ?? '추천순';
 
-  const apiError = useApiErrorMessage(isError, error, '활동 목록을 불러오지 못했어요. 다시 시도해주세요.');
-  const errorMessage =
-    apiError.message ??
-    (data && activities.length === 0
-      ? categoryOptions.length === 0
-        ? '선택한 카테고리를 불러오지 못했어요.'
-        : '조건에 맞는 활동이 없어요.'
-      : null);
+  const apiError = useApiErrorMessage(
+    isError,
+    error,
+    '활동 목록을 불러오지 못했어요. 다시 시도해주세요.',
+  );
+  const errorMessage = getListMessage(
+    apiError.message,
+    !!data,
+    activities.length,
+    categoryOptions.length,
+  );
   const isRetriable = apiError.isRetriable;
+
+  const resetPull = () => {
+    isPullingRef.current = false;
+    setIsPulling(false);
+    Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -114,21 +136,13 @@ export default function CategoryListScreen({ type, title }: Props) {
           Animated.spring(pullAnim, { toValue: PULL_MAX, useNativeDriver: false }).start();
           refetch().finally(() => {
             isRefreshingRef.current = false;
-            isPullingRef.current = false;
-            setIsPulling(false);
-            Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
+            resetPull();
           });
         } else {
-          isPullingRef.current = false;
-          setIsPulling(false);
-          Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
+          resetPull();
         }
       },
-      onPanResponderTerminate: () => {
-        isPullingRef.current = false;
-        setIsPulling(false);
-        Animated.spring(pullAnim, { toValue: 0, useNativeDriver: false }).start();
-      },
+      onPanResponderTerminate: resetPull,
     }),
   ).current;
 
@@ -166,7 +180,10 @@ export default function CategoryListScreen({ type, title }: Props) {
             </View>
           ) : errorMessage ? (
             <View style={styles.messageBox}>
-              <ErrorBox message={errorMessage} onRetry={isRetriable ? () => refetch() : undefined} />
+              <ErrorBox
+                message={errorMessage}
+                onRetry={isRetriable ? () => refetch() : undefined}
+              />
             </View>
           ) : (
             activities.map((activity, i) => (
@@ -196,19 +213,19 @@ export default function CategoryListScreen({ type, title }: Props) {
               title={activeSheet === 'category' ? '활동 분야 선택' : '정렬'}
               options={
                 activeSheet === 'category'
-                  ? categoryOptions.map((o) => o.label)
-                  : sortOptions.map((o) => o.label)
+                  ? categoryOptions.map((option) => option.label)
+                  : sortOptions.map((option) => option.label)
               }
               selected={activeSheet === 'category' ? selectedCategoryLabel : selectedSortLabel}
               optionGap={activeSheet === 'sort' ? 35 : 30}
               height={activeSheet === 'category' ? 428 : 322}
               onSelect={(label) => {
                 if (activeSheet === 'category') {
-                  const opt = categoryOptions.find((o) => o.label === label);
-                  setSelectedCategoryValue(opt?.value ?? '');
+                  const selectedOption = categoryOptions.find((option) => option.label === label);
+                  setSelectedCategoryValue(selectedOption?.value ?? '');
                 } else {
-                  const opt = sortOptions.find((o) => o.label === label);
-                  setSelectedSortValue(opt?.value ?? '');
+                  const selectedOption = sortOptions.find((option) => option.label === label);
+                  setSelectedSortValue(selectedOption?.value ?? '');
                 }
                 setActiveSheet(null);
               }}
