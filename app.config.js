@@ -24,7 +24,7 @@ export default {
       bundler: 'metro',
       output: 'single',
     },
-    plugins: ['expo-router', 'expo-web-browser', 'expo-secure-store'],
+    plugins: ['expo-router', 'expo-web-browser', 'expo-secure-store', 'expo-font', 'expo-status-bar'],
     extra: {
       eas: {
         projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
