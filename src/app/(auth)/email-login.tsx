@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
@@ -15,6 +16,7 @@ import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
+import type { ApiErrorData } from '@/src/types/api';
 
 const isValidEmail = (value: string): boolean => {
   if (/[ㄱ-ㆎ가-힣]/.test(value)) return false;
@@ -63,7 +65,7 @@ export default function EmailLoginScreen() {
       setRegistrationStatus(registrationStatus);
       router.replace(getPostAuthRoute(registrationStatus));
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       console.error('[email-login] login error:', error?.response?.data ?? error);
       const code = error?.response?.data?.code;
       if (code === 'INVALID_LOGIN') {

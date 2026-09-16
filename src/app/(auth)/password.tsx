@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
@@ -15,6 +16,7 @@ import { postLogin, postSignup } from '@/src/api/auth';
 import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import type { ApiErrorData } from '@/src/types/api';
 
 const CONDITIONS = [
   { key: 'length', label: '8자 이상', check: (pw: string) => pw.length >= 8 },
@@ -69,7 +71,7 @@ export default function PasswordScreen() {
       setCompleted(true);
       navigateOnce('/(auth)/profile-setup');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       console.error('[password] signup error:', error?.response?.data ?? error);
       const code = error?.response?.data?.code;
       if (code === 'EMAIL_ALREADY_EXISTS') {

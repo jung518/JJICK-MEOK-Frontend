@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
+import type { ApiErrorData } from '@/src/types/api';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import GenderButton from '@/src/components/Button/GenderButton';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
@@ -131,7 +133,7 @@ export default function ProfileSetupScreen() {
       saveNickname(nickname);
       router.replace('/(auth)/signup-complete');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       console.error('프로필 생성 실패', error);
       const message = error?.response?.data?.message;
       setFormError(message || '프로필 생성에 실패했어요. 다시 시도해주세요.');

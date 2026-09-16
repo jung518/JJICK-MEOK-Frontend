@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { postPasswordReset } from '@/src/api/auth';
+import type { ApiErrorData } from '@/src/types/api';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
 import { ScreenLayout } from '@/src/components/Layout/ScreenLayout';
@@ -53,7 +55,7 @@ export default function ResetPasswordScreen() {
     onSuccess: () => {
       router.replace('/(auth)/login');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       const code = error?.response?.data?.code;
       if (code === 'PASSWORD_SAME_AS_OLD') {
         setServerError('기존 비밀번호와 동일한 비밀번호로 변경할 수 없어요.');

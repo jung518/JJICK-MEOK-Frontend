@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
+import type { ApiErrorData } from '@/src/types/api';
 import ArrowLeftBar from '@/src/components/Bar/ArrowLeftBar';
 import { BottomCTA } from '@/src/components/Button/BottomCTA';
 import { CTAContainer } from '@/src/components/Layout/CTAContainer';
@@ -94,7 +96,7 @@ export default function FindPasswordScreen() {
       startTimer(response.expiresIn);
       setStep('verify');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       const errorCode = error?.response?.data?.code;
       if (errorCode === 'USER_NOT_FOUND') {
         setServerError('가입되지 않은 이메일이에요.');
@@ -111,7 +113,7 @@ export default function FindPasswordScreen() {
       setCodeError('');
       startTimer(response.expiresIn);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       const errorCode = error?.response?.data?.code;
       setCodeError(
         errorCode === 'EMAIL_CODE_RATE_LIMITED'
@@ -129,7 +131,7 @@ export default function FindPasswordScreen() {
         params: { resetToken: response.resetToken },
       });
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorData>) => {
       const errorCode = error?.response?.data?.code;
       if (errorCode === 'INVALID_EMAIL_CODE') {
         setCodeError('인증번호가 올바르지 않습니다.');

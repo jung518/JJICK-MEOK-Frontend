@@ -3,7 +3,7 @@ import { PanResponder, type NativeScrollEvent, type NativeSyntheticEvent } from 
 
 const PULL_THRESHOLD = 60;
 
-export function usePullToRefresh(refetch: () => Promise<any>) {
+export function usePullToRefresh(refetch: () => Promise<unknown>) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollYRef = useRef(0);
   const isRefreshingRef = useRef(false);

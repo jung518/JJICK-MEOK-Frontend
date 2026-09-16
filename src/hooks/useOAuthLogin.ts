@@ -5,8 +5,10 @@ import { useRouter } from 'expo-router';
 import { postHandoff } from '@/src/api/auth';
 import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
+import type { AxiosError } from 'axios';
 import { getOAuthRedirectUri } from '@/src/lib/oauthRedirect';
 import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
+import type { ApiErrorData } from '@/src/types/api';
 
 type OAuthProvider = 'google' | 'kakao' | 'naver';
 
@@ -34,8 +36,11 @@ export const useOAuthLogin = (provider: OAuthProvider) => {
       setToken(accessToken);
       setRegistrationStatus(registrationStatus);
       router.replace(getPostAuthRoute(registrationStatus));
-    } catch (error: any) {
-      console.error(`[useOAuthLogin:${provider}] error:`, error?.response?.data ?? error);
+    } catch (error) {
+      console.error(
+        `[useOAuthLogin:${provider}] error:`,
+        (error as AxiosError<ApiErrorData>)?.response?.data ?? error,
+      );
     }
   };
 
