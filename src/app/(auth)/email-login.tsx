@@ -14,6 +14,7 @@ import { postLogin } from '@/src/api/auth';
 import { tokenStorage } from '@/src/lib/secureStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
+import { getPostAuthRoute } from '@/src/lib/postAuthRoute';
 
 const isValidEmail = (value: string): boolean => {
   if (/[ㄱ-ㆎ가-힣]/.test(value)) return false;
@@ -60,14 +61,7 @@ export default function EmailLoginScreen() {
       ]);
       setToken(accessToken);
       setRegistrationStatus(registrationStatus);
-
-      if (registrationStatus === 'NOT_STARTED') {
-        router.replace('/(auth)/profile-setup');
-      } else if (registrationStatus === 'PROFILE_COMPLETED') {
-        router.replace('/onboarding/step1');
-      } else {
-        router.replace('/(tabs)/home');
-      }
+      router.replace(getPostAuthRoute(registrationStatus));
     },
     onError: (error: any) => {
       console.error('[email-login] login error:', error?.response?.data ?? error);
