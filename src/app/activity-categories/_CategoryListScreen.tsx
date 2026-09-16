@@ -57,7 +57,7 @@ function toCardProps(activity: HomeActivity) {
   };
 }
 
-type ActivityType = 'PROGRAM' | 'ONE_DAY' | 'EVENT' | 'CLUB';
+export type ActivityType = 'PROGRAM' | 'ONE_DAY' | 'EVENT' | 'CLUB';
 
 type Props = {
   type: ActivityType;
