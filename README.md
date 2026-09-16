@@ -14,7 +14,6 @@
 
 <img src="docs/screenshots/demo-qr.jpg" width="180"/>
 
-> `docs/screenshots/demo-qr.jpg`에 QR 이미지를 넣으면 바로 반영됩니다.
 
 ## Screenshots
 
