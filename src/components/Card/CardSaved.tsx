@@ -8,6 +8,7 @@ import HeartUnselected from '@/assets/images/HeartUnselected.svg';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
 import { addFavorite, deleteFavorite } from '@/src/api/favorites';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 
 type TagVariant = 'MOOD' | 'INTENSITY' | 'DURATION' | 'SIZE' | 'PURPOSE';
 
@@ -37,8 +38,8 @@ export default function CardSaved({
 }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [isSaving, setIsSaving] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [imgWidth, setImgWidth] = useState(0);
+  const { hasImage, onError } = useImageWithFallback(thumbnailUrl);
 
   const handleHeartPress = () => {
     if (isSaving) return;
@@ -62,12 +63,12 @@ export default function CardSaved({
           style={StyleSheet.absoluteFill}
           onLayout={(e) => setImgWidth(e.nativeEvent.layout.width)}
         >
-          {thumbnailUrl && !imageError ? (
+          {hasImage ? (
             <Image
               source={{ uri: thumbnailUrl }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
-              onError={() => setImageError(true)}
+              onError={onError}
             />
           ) : (
             <DefaultActivity width={imgWidth} height={150} preserveAspectRatio="xMidYMid slice" />

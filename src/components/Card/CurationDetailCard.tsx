@@ -9,6 +9,7 @@ import HeartUnselected from '@/assets/images/HeartUnselected.svg';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
 import { addFavorite, deleteFavorite } from '@/src/api/favorites';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 
 type Props = {
   activityId: number;
@@ -32,16 +33,12 @@ export default function CurationDetailCard({
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(initialSaved);
   const [isSaving, setIsSaving] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [imgWidth, setImgWidth] = useState(0);
+  const { hasImage, onError } = useImageWithFallback(thumbnailUrl);
 
   useEffect(() => {
     setSaved(initialSaved);
   }, [initialSaved]);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [thumbnailUrl]);
 
   const handleHeartPress = () => {
     if (isSaving) return;
@@ -66,12 +63,12 @@ export default function CurationDetailCard({
           style={StyleSheet.absoluteFill}
           onLayout={(e) => setImgWidth(e.nativeEvent.layout.width)}
         >
-          {thumbnailUrl && !imageError ? (
+          {hasImage ? (
             <Image
               source={{ uri: thumbnailUrl }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
-              onError={() => setImageError(true)}
+              onError={onError}
             />
           ) : (
             <DefaultActivity width={imgWidth} height={150} preserveAspectRatio="xMidYMid slice" />

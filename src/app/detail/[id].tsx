@@ -32,6 +32,7 @@ import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
 import { useApiErrorMessage } from '@/src/hooks/useApiErrorMessage';
 import { ErrorBox } from '@/src/components/EmptyState/ErrorBox';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 
 const TABS = [
   { key: 'info', label: '정보' },
@@ -75,7 +76,6 @@ export default function ActivityDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const scrollYRef = useRef(0);
   const isRefreshingRef = useRef(false);
   const refetchRef = useRef<() => Promise<any>>(() => Promise.resolve());
@@ -117,11 +117,7 @@ export default function ActivityDetailPage() {
     }
   }, [data?.liked]);
 
-  useEffect(() => {
-    setImageError(false);
-  }, [data?.thumbnailUrl]);
-
-  const hasImage = !!data?.thumbnailUrl && !imageError;
+  const { hasImage, onError: onImageError } = useImageWithFallback(data?.thumbnailUrl);
 
   const handleSavePress = () => {
     if (!data || isSaving) return;
@@ -190,10 +186,10 @@ export default function ActivityDetailPage() {
                   <View style={styles.thumbnail}>
                     {hasImage ? (
                       <Image
-                        source={{ uri: data.thumbnailUrl }}
+                        source={{ uri: data!.thumbnailUrl }}
                         style={StyleSheet.absoluteFill}
                         resizeMode="cover"
-                        onError={() => setImageError(true)}
+                        onError={onImageError}
                       />
                     ) : (
                       <DefaultActivity width={135} height={135} />
@@ -273,10 +269,10 @@ export default function ActivityDetailPage() {
                       {hasImage && (
                         <View style={styles.posterPlaceholder}>
                           <Image
-                            source={{ uri: data.thumbnailUrl }}
+                            source={{ uri: data!.thumbnailUrl }}
                             style={StyleSheet.absoluteFill}
                             resizeMode="cover"
-                            onError={() => setImageError(true)}
+                            onError={onImageError}
                           />
                         </View>
                       )}

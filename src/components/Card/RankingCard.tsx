@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge from '@/src/components/Chip/ChipBadge';
 import { colors } from '@/src/constants/colors';
 import { formatDday } from '@/src/utils/activity';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 
 type Props = {
@@ -23,12 +23,8 @@ export default function RankingCard({
   deadline,
   thumbnailUrl,
 }: Props) {
-  const [imageError, setImageError] = useState(false);
+  const { hasImage, onError } = useImageWithFallback(thumbnailUrl);
   const ddayLabel = formatDday(deadline);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [thumbnailUrl]);
 
   return (
     <View style={styles.container}>
@@ -63,12 +59,12 @@ export default function RankingCard({
         </Typography>
       </View>
       <View style={[styles.image, { overflow: 'hidden' }]}>
-        {thumbnailUrl && !imageError ? (
+        {hasImage ? (
           <Image
             source={{ uri: thumbnailUrl }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
-            onError={() => setImageError(true)}
+            onError={onError}
           />
         ) : (
           <DefaultActivity width={72} height={72} />

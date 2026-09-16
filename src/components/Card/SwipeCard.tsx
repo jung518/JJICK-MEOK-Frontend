@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, Platform } from 'react-native';
+import { useImageWithFallback } from '@/src/hooks/useImageWithFallback';
 import DefaultActivitySvg from '@/assets/images/DefaultActivity.svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -94,11 +95,7 @@ export default function SwipeCard({
   onHeartPressIn,
 }: Props) {
   const bg = '#BEBEBE';
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [activity.imageUrl]);
+  const { hasImage, onError } = useImageWithFallback(activity.imageUrl);
 
   const handleHeartPressIn = () => {
     onSave?.();
@@ -129,12 +126,12 @@ export default function SwipeCard({
           backgroundColor: bg,
         }}
       >
-        {activity.imageUrl && !imageError ? (
+        {hasImage ? (
           <Image
             source={{ uri: activity.imageUrl }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
-            onError={() => setImageError(true)}
+            onError={onError}
           />
         ) : (
           <DefaultActivitySvg
