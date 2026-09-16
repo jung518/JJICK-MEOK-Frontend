@@ -29,12 +29,14 @@ export default function ResetPasswordScreen() {
   const [confirmTouched, setConfirmTouched] = useState(false);
   const [serverError, setServerError] = useState<string | undefined>();
 
-  const conditionsMet = CONDITIONS.map((c) => c.check(password));
+  const conditionsMet = CONDITIONS.map((condition) => condition.check(password));
   const allMet = conditionsMet.every(Boolean);
   const passwordsMatch = password.length > 0 && password === confirm;
   const isComplete = allMet && passwordsMatch;
 
-  const failedLabels = CONDITIONS.filter((_, i) => !conditionsMet[i]).map((c) => c.label);
+  const failedLabels = CONDITIONS.filter((_, i) => !conditionsMet[i]).map(
+    (condition) => condition.label,
+  );
   const passwordError =
     serverError ??
     (passwordTouched && password.length > 0 && !allMet

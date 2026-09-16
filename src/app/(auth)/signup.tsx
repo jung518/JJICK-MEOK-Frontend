@@ -87,11 +87,11 @@ export default function SignupScreen() {
 
   const { mutate: sendCode, isPending: isSending } = useMutation({
     mutationFn: () => postEmailSendCode(email),
-    onSuccess: (data) => {
+    onSuccess: (response) => {
       setServerError('');
       setCode('');
       setCodeError('');
-      startTimer(data.expiresIn);
+      startTimer(response.expiresIn);
       setStep('verify');
     },
     onError: (error: any) => {
@@ -106,10 +106,10 @@ export default function SignupScreen() {
 
   const { mutate: resendCode, isPending: isResending } = useMutation({
     mutationFn: () => postEmailSendCode(email),
-    onSuccess: (data) => {
+    onSuccess: (response) => {
       setCode('');
       setCodeError('');
-      startTimer(data.expiresIn);
+      startTimer(response.expiresIn);
     },
     onError: (error: any) => {
       const errorCode = error?.response?.data?.code;

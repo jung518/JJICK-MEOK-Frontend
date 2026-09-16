@@ -65,8 +65,8 @@ export default function SearchScreen() {
     '검색 결과를 불러오지 못했어요. 다시 시도해주세요.',
   );
 
-  const visibleResults = (results ?? []).filter((item) =>
-    isNotExpired(getDaysLeftFromDate(item.recruitEndAt)),
+  const visibleResults = (results ?? []).filter((activity) =>
+    isNotExpired(getDaysLeftFromDate(activity.recruitEndAt)),
   );
 
   const handleSearch = (text: string) => {
@@ -115,13 +115,13 @@ export default function SearchScreen() {
                 {`'${searchText}'에 대한 검색 결과`}
               </Typography>
               <View>
-                {visibleResults.map((item, i) => (
-                  <View key={item.id}>
+                {visibleResults.map((activity, i) => (
+                  <View key={activity.id}>
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() => navigateOnce(`/detail/${item.id}`)}
+                      onPress={() => navigateOnce(`/detail/${activity.id}`)}
                     >
-                      <ActivityCard {...toCardProps(item)} />
+                      <ActivityCard {...toCardProps(activity)} />
                     </TouchableOpacity>
                     {i < visibleResults.length - 1 && (
                       <View style={styles.cardDividerRow}>

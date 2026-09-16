@@ -34,12 +34,14 @@ export default function PasswordScreen() {
   const [signupError, setSignupError] = useState('');
   const [completed, setCompleted] = useState(false);
 
-  const conditionsMet = CONDITIONS.map((c) => c.check(password));
+  const conditionsMet = CONDITIONS.map((condition) => condition.check(password));
   const allMet = conditionsMet.every(Boolean);
   const passwordsMatch = password.length > 0 && password === confirm;
   const isComplete = allMet && passwordsMatch;
 
-  const failedLabels = CONDITIONS.filter((_, i) => !conditionsMet[i]).map((c) => c.label);
+  const failedLabels = CONDITIONS.filter((_, i) => !conditionsMet[i]).map(
+    (condition) => condition.label,
+  );
   const passwordError =
     passwordTouched && password.length > 0 && !allMet
       ? failedLabels.join(', ') + '이 필요해요.'
@@ -62,6 +64,8 @@ export default function PasswordScreen() {
       setRegistrationStatus(registrationStatus);
     },
     onSuccess: () => {
+      // navigateOnce only debounces for 600ms, so a re-tap of the CTA after that window would
+      // fire signup() again; `completed` makes a later tap just retry navigation instead.
       setCompleted(true);
       navigateOnce('/(auth)/profile-setup');
     },

@@ -41,10 +41,10 @@ export default function OnboardingStep4() {
 
   const tagsByGroup = useMemo(() => {
     const map: Record<string, typeof tags> = {};
-    tags.forEach((t) => {
-      const group = t.tagGroupType ?? 'ETC';
+    tags.forEach((tag) => {
+      const group = tag.tagGroupType ?? 'ETC';
       if (!map[group]) map[group] = [];
-      map[group].push(t);
+      map[group].push(tag);
     });
     return map;
   }, [tags]);
@@ -67,7 +67,8 @@ export default function OnboardingStep4() {
   };
 
   const allCategoriesSelected = useMemo(
-    () => groups.every((group) => (tagsByGroup[group] ?? []).some((t) => selectedTagIds.has(t.id))),
+    () =>
+      groups.every((group) => (tagsByGroup[group] ?? []).some((tag) => selectedTagIds.has(tag.id))),
     [groups, selectedTagIds, tagsByGroup],
   );
 
