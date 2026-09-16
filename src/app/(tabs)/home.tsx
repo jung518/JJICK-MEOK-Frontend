@@ -24,6 +24,7 @@ import Curation from '@/src/components/Card/Curation';
 import Indicator from '@/src/components/Indicator/Indicator';
 import { getTags } from '@/src/api/user';
 import { getHomeData } from '@/src/api/pages';
+import { getActivityTypeLabel, isNotExpired } from '@/src/utils/activity';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
 import { CURATION_KEY_BY_TITLE } from '@/src/constants/curationThemes';
@@ -80,13 +81,6 @@ const DEFAULT_ICONS: IconConfig[] = [
   { Svg: Event, label: '행사·강연', route: '/activity-categories/festival' },
   { Svg: Club, label: '동아리', route: '/activity-categories/club' },
 ];
-
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
-};
 
 const PULL_THRESHOLD = 60;
 
@@ -175,11 +169,11 @@ export default function HomeScreen() {
   }, [tagsData]);
 
   const featured = homeData?.featured.activities ?? [];
-  const recommended = (homeData?.expandedRecommendation.activities ?? []).filter(
-    (a) => a.deadline >= 0,
+  const recommended = (homeData?.expandedRecommendation.activities ?? []).filter((a) =>
+    isNotExpired(a.deadline),
   );
   // 인기 활동은 백엔드가 정렬해서 내려주므로 프론트에서 재정렬하지 않는다.
-  const displayCards = (homeData?.popular.activities ?? []).filter((a) => a.deadline >= 0);
+  const displayCards = (homeData?.popular.activities ?? []).filter((a) => isNotExpired(a.deadline));
   const rankingPageCount = Math.ceil(displayCards.length / RANKING_PAGE_SIZE);
 
   refetchRef.current = refetch;
@@ -288,10 +282,7 @@ export default function HomeScreen() {
                               >
                                 <RankingCard
                                   rank={pageIndex * RANKING_PAGE_SIZE + i + 1}
-                                  category={
-                                    ACTIVITY_TYPE_LABEL[activity.activityType] ??
-                                    activity.activityType
-                                  }
+                                  category={getActivityTypeLabel(activity.activityType)}
                                   title={activity.title}
                                   showAD={activity.isAd}
                                   deadline={activity.deadline}
@@ -350,9 +341,7 @@ export default function HomeScreen() {
                       onPress={() => navigateOnce(`/detail/${activity.id}`)}
                     >
                       <RecommendationCard
-                        category={
-                          ACTIVITY_TYPE_LABEL[activity.activityType] ?? activity.activityType
-                        }
+                        category={getActivityTypeLabel(activity.activityType)}
                         title={activity.title}
                         hashtags={activity.hashtags}
                         deadline={activity.deadline}

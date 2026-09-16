@@ -30,18 +30,12 @@ import { colors } from '@/src/constants/colors';
 import { getDetailData } from '@/src/api/pages';
 import { addFavorite, deleteFavorite } from '@/src/api/favorites';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
+import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
 
 const TABS = [
   { key: 'info', label: '정보' },
   { key: 'review', label: '후기' },
 ];
-
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
-};
 
 const BOTTOM_BAR_HEIGHT = 114;
 const PULL_THRESHOLD = 60;
@@ -235,18 +229,12 @@ export default function ActivityDetailPage() {
 
                   <View style={styles.metaRow}>
                     <ChipBadge
-                      label={
-                        ACTIVITY_TYPE_LABEL[data?.activityType ?? ''] ?? data?.activityType ?? ''
-                      }
+                      label={data?.activityType ? getActivityTypeLabel(data.activityType) : ''}
                       variant="category"
                     />
                     <View style={styles.statsRow}>
                       <Typography size="sm" weight="semiBold" style={styles.DDay}>
-                        {data?.deadline != null
-                          ? data.deadline <= 0
-                            ? 'D-day'
-                            : `D-${data.deadline}`
-                          : '-'}
+                        {data?.deadline != null ? formatDday(data.deadline) : '-'}
                       </Typography>
                       <View style={styles.statItem}>
                         <EyeOn width={14} height={14} color="#CCCCCC" />

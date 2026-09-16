@@ -3,6 +3,7 @@ import { View, StyleSheet, Image } from 'react-native';
 import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge from '@/src/components/Chip/ChipBadge';
 import { colors } from '@/src/constants/colors';
+import { formatDday } from '@/src/utils/activity';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 
 type Props = {
@@ -23,7 +24,7 @@ export default function RankingCard({
   thumbnailUrl,
 }: Props) {
   const [imageError, setImageError] = useState(false);
-  const ddayLabel = deadline <= 0 ? 'D-day' : `D-${deadline}`;
+  const ddayLabel = formatDday(deadline);
 
   useEffect(() => {
     setImageError(false);

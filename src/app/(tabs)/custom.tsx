@@ -10,6 +10,7 @@ import { Typography } from '@/src/components/Typography/Typography';
 import { getPersonalizationActivities } from '@/src/api/activities';
 import { getCustomPageData } from '@/src/api/pages';
 import { getTagVariant } from '@/src/utils/tagVariant';
+import { getDaysLeftFromDate } from '@/src/utils/activity';
 import { colors } from '@/src/constants/colors';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import type { Activity } from '@/src/types/activities';
@@ -20,12 +21,8 @@ function pickRandomTags(tags: string[], count: number): string[] {
   return shuffled.slice(0, count);
 }
 
-function getDaysLeft(recruitEndAt: string): number {
-  return Math.ceil((new Date(recruitEndAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-}
-
 function toActivity(item: PersonalizationActivity): Activity {
-  const daysLeft = getDaysLeft(item.recruitEndAt);
+  const daysLeft = getDaysLeftFromDate(item.recruitEndAt);
   return {
     id: String(item.id),
     title: item.title,
@@ -62,7 +59,9 @@ export default function CustomScreen() {
 
   const activities = useMemo<Activity[]>(
     () =>
-      (rawActivities ?? []).filter((item) => getDaysLeft(item.recruitEndAt) >= 0).map(toActivity),
+      (rawActivities ?? [])
+        .filter((item) => getDaysLeftFromDate(item.recruitEndAt) >= 0)
+        .map(toActivity),
     [rawActivities],
   );
   const nickname = pageData?.nickname ?? '';

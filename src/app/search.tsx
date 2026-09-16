@@ -14,19 +14,13 @@ import { colors } from '@/src/constants/colors';
 import { searchActivities } from '@/src/api/activities';
 import type { ActivitySummary } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday, getDaysLeftFromDate, isNotExpired } from '@/src/utils/activity';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-function getDaysLeft(activity: ActivitySummary) {
-  return Math.ceil(
-    (new Date(activity.recruitEndAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-}
-
 function toCardProps(activity: ActivitySummary) {
-  const daysLeft = getDaysLeft(activity);
-  const dday = daysLeft <= 0 ? 'D-day' : `D-${daysLeft}`;
+  const dday = formatDday(getDaysLeftFromDate(activity.recruitEndAt));
   const tags = assignUniqueVariants(pickDiverseTags(activity.tags));
   return {
     dday,
@@ -74,7 +68,9 @@ export default function SearchScreen() {
 
   const isRetriable = isError && (error as AxiosError)?.response?.status !== 401;
 
-  const visibleResults = (results ?? []).filter((item) => getDaysLeft(item) >= 0);
+  const visibleResults = (results ?? []).filter((item) =>
+    isNotExpired(getDaysLeftFromDate(item.recruitEndAt)),
+  );
 
   const handleSearch = (text: string) => {
     setSearchText(text);

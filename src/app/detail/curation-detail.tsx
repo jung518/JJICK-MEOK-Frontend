@@ -15,6 +15,7 @@ import { colors } from '@/src/constants/colors';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 import { getCurationDetailPageData } from '@/src/api/pages';
 import { assignUniqueVariants } from '@/src/utils/tagVariant';
+import { formatDday, getActivityTypeLabel } from '@/src/utils/activity';
 
 const TAB_TO_ROUTE: Record<TabKey, string> = {
   home: '/home',
@@ -22,13 +23,6 @@ const TAB_TO_ROUTE: Record<TabKey, string> = {
   personalize: '/custom',
   heart: '/wishlist',
   my: '/mypage',
-};
-
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
 };
 
 export default function CurationDetailScreen() {
@@ -79,8 +73,8 @@ export default function CurationDetailScreen() {
   const uniqueActivities = Array.from(new Map(allActivities.map((a) => [a.id, a])).values());
   const curationActivities = uniqueActivities.map((activity) => ({
     id: activity.id,
-    category: ACTIVITY_TYPE_LABEL[activity.activityType] ?? activity.activityType,
-    dday: activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`,
+    category: getActivityTypeLabel(activity.activityType),
+    dday: formatDday(activity.deadline),
     title: activity.title,
     thumbnailUrl: activity.thumbnailUrl,
     initialSaved: activity.liked,

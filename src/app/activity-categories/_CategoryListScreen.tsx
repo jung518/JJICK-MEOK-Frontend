@@ -23,6 +23,7 @@ import { colors } from '@/src/constants/colors';
 import { getCategoryPageData } from '@/src/api/pages';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday, isNotExpired } from '@/src/utils/activity';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
 
 const PULL_THRESHOLD = 60;
@@ -31,7 +32,7 @@ const PULL_MAX = 80;
 type SheetType = 'category' | 'sort' | null;
 
 function toCardProps(activity: HomeActivity) {
-  const dday = activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`;
+  const dday = formatDday(activity.deadline);
   const tags = assignUniqueVariants(pickDiverseTags(activity.hashtags ?? []));
   return {
     dday,
@@ -75,7 +76,7 @@ export default function CategoryListScreen({ type, title }: Props) {
 
   const categoryOptions = data?.categoryOptions ?? [];
   const sortOptions = data?.sortOptions ?? [];
-  const activities = (data?.activities ?? []).filter((a) => a.deadline >= 0);
+  const activities = (data?.activities ?? []).filter((a) => isNotExpired(a.deadline));
 
   const selectedCategoryLabel =
     categoryOptions.find((o) => o.value === selectedCategoryValue)?.label ?? '전체';

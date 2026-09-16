@@ -3,6 +3,7 @@ import { View, StyleSheet, Image } from 'react-native';
 import { Typography } from '@/src/components/Typography/Typography';
 import ChipBadge from '@/src/components/Chip/ChipBadge';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import { formatDday } from '@/src/utils/activity';
 import DefaultActivity from '@/assets/images/DefaultActivity.svg';
 import { colors } from '@/src/constants/colors';
 
@@ -23,7 +24,7 @@ export default function RecommendationCard({
 }: Props) {
   const [imageError, setImageError] = useState(false);
   const displayTags = assignUniqueVariants(pickDiverseTags(hashtags));
-  const ddayLabel = deadline <= 0 ? 'D-day' : `D-${deadline}`;
+  const ddayLabel = formatDday(deadline);
 
   return (
     <View style={styles.container}>

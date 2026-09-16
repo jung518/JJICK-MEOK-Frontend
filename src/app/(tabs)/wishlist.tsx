@@ -23,14 +23,13 @@ import CardSaved from '@/src/components/Card/CardSaved';
 import { getFavoritesPageData } from '@/src/api/pages';
 import type { HomeActivity } from '@/src/types/activities';
 import { assignUniqueVariants, pickDiverseTags } from '@/src/utils/tagVariant';
+import {
+  ACTIVITY_TYPE_LABEL,
+  formatDday,
+  getActivityTypeLabel,
+  isNotExpired,
+} from '@/src/utils/activity';
 import { useNavigateOnce } from '@/src/hooks/useNavigateOnce';
-
-const ACTIVITY_TYPE_LABEL: Record<string, string> = {
-  PROGRAM: '프로그램',
-  ONE_DAY: '원데이',
-  EVENT: '행사·강연',
-  CLUB: '동아리',
-};
 
 const SORT_MAP: Record<string, 'saved' | 'deadline'> = {
   담은순: 'saved',
@@ -113,9 +112,9 @@ export default function ProgramListScreen() {
 
   const filteredActivities = activities.filter((activity: HomeActivity) => {
     if (removedIds.has(activity.id)) return false;
-    if (activity.deadline < 0) return false;
+    if (!isNotExpired(activity.deadline)) return false;
     if (selectedTab === '전체') return true;
-    return ACTIVITY_TYPE_LABEL[activity.activityType] === selectedTab;
+    return getActivityTypeLabel(activity.activityType) === selectedTab;
   });
 
   const handleRemove = (activityId: number) => {
@@ -199,7 +198,7 @@ export default function ProgramListScreen() {
                         >
                           <CardSaved
                             activityId={activity.id}
-                            dday={activity.deadline <= 0 ? 'D-day' : `D-${activity.deadline}`}
+                            dday={formatDday(activity.deadline)}
                             title={activity.title}
                             tags={assignUniqueVariants(pickDiverseTags(activity.hashtags))}
                             thumbnailUrl={activity.thumbnailUrl}
